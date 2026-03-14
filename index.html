@@ -1390,16 +1390,35 @@ async function loadFromAPI() {
       'Jan 22': 'Week 1', 'Jan 29': 'Week 2', 'Feb 5':  'Week 3',
       'Feb 12': 'Week 4', 'Feb 19': 'Week 5', 'Feb 26': 'Week 6',
       'Mar 5':  'Week 7', 'Mar 12': 'Week 8', 'Mar 19': 'Week 9',
-      'Mar 26': 'Week 10'
+      'Mar 26': 'Week 10', 'Mar 14, 2026': 'Week 8'
+    };
+
+    // Map API asset names → website asset IDs
+    const ASSET_NAME_TO_ID = {
+      'S&P 500':           'sp500',
+      'NASDAQ Composite':  'nasdaq',
+      'FTSE 100':          'ftse',
+      'DAX':               'dax',
+      'VIX':               'vix',
+      'Gold ($/oz)':       'gold',
+      'Oil WTI ($/bbl)':   'oil',
+      'Nat Gas ($/MMBtu)': 'gas',
+      'Fed Funds Rate':    'fedFunds',
+      '2Y Treasury (%)':   't3m',
+      '5Y Treasury (%)':   't1y',
+      '10Y Treasury (%)':  't1y',
+      '2Y/10Y Spread':     'spread',
     };
 
     // Group rows into the { weeks: [...] } structure the app expects
     const weekMap = {};
     for (const row of rows) {
-      const raw = row.AssetDate;
-      const w   = DATE_TO_WEEK[raw] || raw; // convert date → Week N, or keep if already "Week N"
-      if (!weekMap[w]) weekMap[w] = { id: w, notes: '', assets: {} };
-      weekMap[w].assets[row.Asset] = row.ClosePrice;
+      const raw    = row.AssetDate;
+      const w      = DATE_TO_WEEK[raw] || raw;
+      const assetId = ASSET_NAME_TO_ID[row.Asset];
+      if (!assetId) continue;
+      if (!weekMap[w]) weekMap[w] = { id: w, notes: '' };
+      weekMap[w][assetId] = row.ClosePrice;
     }
 
     // Sort weeks numerically
