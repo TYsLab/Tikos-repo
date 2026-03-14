@@ -1385,10 +1385,19 @@ async function loadFromAPI() {
     const res  = await fetch(API_URL);
     const rows = await res.json();
 
+    // Map old date labels to Week numbers
+    const DATE_TO_WEEK = {
+      'Jan 22': 'Week 1', 'Jan 29': 'Week 2', 'Feb 5':  'Week 3',
+      'Feb 12': 'Week 4', 'Feb 19': 'Week 5', 'Feb 26': 'Week 6',
+      'Mar 5':  'Week 7', 'Mar 12': 'Week 8', 'Mar 19': 'Week 9',
+      'Mar 26': 'Week 10'
+    };
+
     // Group rows into the { weeks: [...] } structure the app expects
     const weekMap = {};
     for (const row of rows) {
-      const w = row.AssetDate; // e.g. "Week 8"
+      const raw = row.AssetDate;
+      const w   = DATE_TO_WEEK[raw] || raw; // convert date → Week N, or keep if already "Week N"
       if (!weekMap[w]) weekMap[w] = { id: w, notes: '', assets: {} };
       weekMap[w].assets[row.Asset] = row.ClosePrice;
     }
