@@ -1368,6 +1368,8 @@ let chartInstance = null;
 
 // ─── STORAGE ─────────────────────────────────────────────────────────────────
 
+const API_URL = 'https://ty-market-function-dqddapd6gwahe7hd.westus2-01.azurewebsites.net/api/market-data';
+
 function loadData() {
   try {
     return JSON.parse(localStorage.getItem('marketpulse_data')) || { weeks: [] };
@@ -1376,6 +1378,35 @@ function loadData() {
 
 function saveData(data) {
   localStorage.setItem('marketpulse_data', JSON.stringify(data));
+}
+
+async function loadFromAPI() {
+  try {
+    const res  = await fetch(API_URL);
+    const rows = await res.json();
+
+    // Group rows into the { weeks: [...] } structure the app expects
+    const weekMap = {};
+    for (const row of rows) {
+      const w = row.AssetDate; // e.g. "Week 8"
+      if (!weekMap[w]) weekMap[w] = { id: w, notes: '', assets: {} };
+      weekMap[w].assets[row.Asset] = row.ClosePrice;
+    }
+
+    // Sort weeks numerically
+    const weeks = Object.values(weekMap).sort((a, b) => {
+      const na = parseInt(a.id.replace('Week ', '')) || 0;
+      const nb = parseInt(b.id.replace('Week ', '')) || 0;
+      return na - nb;
+    });
+
+    const data = { weeks };
+    saveData(data); // cache in localStorage
+    return data;
+  } catch(e) {
+    console.warn('API fetch failed, using localStorage:', e);
+    return loadData();
+  }
 }
 
 // ─── WEEK DATE ───────────────────────────────────────────────────────────────
@@ -2371,8 +2402,9 @@ function escHtml(str) {
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   setupTooltips();
+  await loadFromAPI();
   navigate('dashboard');
 });
 </script>
