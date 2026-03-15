@@ -1759,7 +1759,7 @@ function buildPerformanceTable(weeks) {
   const w3m = curIdx >= 13 ? weeks[curIdx - 13] : weeks[0];
   const w1y = curIdx >= 52 ? weeks[curIdx - 52] : null;
 
-  const perfIds = ['sp500','nasdaq','ftse','dax','gold','oil','gas','t2y','t5y','t10y','t30y'];
+  const perfIds = ['sp500','nasdaq','ftse','dax','vix','gold','oil','gas','t2y','t5y','t10y','t30y'];
   const perfAssets = ASSETS.filter(a => perfIds.includes(a.id));
 
   const calcPct = (curVal, refVal) => {
