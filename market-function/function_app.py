@@ -150,34 +150,52 @@ def market_api(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="market-performance", auth_level=func.AuthLevel.ANONYMOUS)
 def market_performance(req: func.HttpRequest) -> func.HttpResponse:
-    import json, yfinance as yf
+    import json, time as _time
 
-    today   = datetime.today()
-    d_3m    = today - timedelta(days=91)
-    d_1y    = today - timedelta(days=365)
-    start   = d_1y - timedelta(days=10)
+    today = datetime.today()
+    d_3m  = today - timedelta(days=91)
+    d_1y  = today - timedelta(days=365)
 
-    def closest(df, target):
-        ts = target.replace(tzinfo=None)
-        idx = df.index.searchsorted(ts)
-        if idx >= len(df): idx = len(df) - 1
-        if idx > 0 and abs((df.index[idx-1] - ts).days) < abs((df.index[idx] - ts).days):
-            idx -= 1
-        return round(float(df["Close"].iloc[idx]), 4)
+    def yahoo_chart(ticker):
+        """Fetch 1y daily chart from Yahoo Finance v8 API."""
+        url = (
+            f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
+            f"?interval=1d&range=13mo&includePrePost=false"
+        )
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = requests.get(url, headers=headers, timeout=15)
+        result = r.json().get("chart", {}).get("result", [])
+        if not result:
+            return None
+        timestamps = result[0].get("timestamp", [])
+        closes     = result[0].get("indicators", {}).get("quote", [{}])[0].get("close", [])
+        return list(zip(timestamps, closes))
+
+    def price_on(pairs, target_dt):
+        """Find closing price closest to target date."""
+        target_ts = _time.mktime(target_dt.timetuple())
+        best = None
+        best_diff = float("inf")
+        for ts, price in pairs:
+            if price is None: continue
+            diff = abs(ts - target_ts)
+            if diff < best_diff:
+                best_diff = diff
+                best = price
+        return round(best, 4) if best is not None else None
 
     results = {}
 
-    # Yahoo Finance
+    # Yahoo Finance — direct API
     for name, ticker in YAHOO_TICKERS.items():
         try:
-            t  = yf.Ticker(ticker)
-            df = t.history(start=start.strftime("%Y-%m-%d"), interval="1d")
-            if df.empty: continue
-            df.index = df.index.tz_localize(None) if df.index.tzinfo else df.index
+            pairs = yahoo_chart(ticker)
+            if not pairs: continue
+            current = next((p for _, p in reversed(pairs) if p is not None), None)
             results[name] = {
-                "current":  round(float(df["Close"].iloc[-1]), 4),
-                "price_3m": closest(df, d_3m),
-                "price_1y": closest(df, d_1y),
+                "current":  round(current, 4) if current else None,
+                "price_3m": price_on(pairs, d_3m),
+                "price_1y": price_on(pairs, d_1y),
             }
             logging.info(f"Perf | {name}: {results[name]['current']}")
         except Exception as e:
