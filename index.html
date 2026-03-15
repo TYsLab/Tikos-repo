@@ -1098,9 +1098,11 @@ const ASSETS = [
   { id:'oil',      label:'WTI Oil ($/bbl)',    cat:'commodities', color:'#ef4444', unit:'$',     dec:2 },
   { id:'gas',      label:'Nat. Gas ($/MMBtu)', cat:'commodities', color:'#f97316', unit:'$',     dec:3 },
   { id:'fedFunds', label:'Fed Funds Rate',     cat:'rates',       color:'#ec4899', unit:'%',     dec:2 },
-  { id:'t3m',      label:'3M Treasury',        cat:'rates',       color:'#a78bfa', unit:'%',     dec:3 },
-  { id:'t1y',      label:'1Y Treasury',        cat:'rates',       color:'#34d399', unit:'%',     dec:3 },
-  { id:'spread',   label:'2Y/10Y Spread',      cat:'rates',       color:'#fb923c', unit:'bps',   dec:0 },
+  { id:'t2y',      label:'2Y Treasury (%)',    cat:'rates',       color:'#a78bfa', unit:'%',     dec:3 },
+  { id:'t5y',      label:'5Y Treasury (%)',    cat:'rates',       color:'#34d399', unit:'%',     dec:3 },
+  { id:'t10y',     label:'10Y Treasury (%)',   cat:'rates',       color:'#38bdf8', unit:'%',     dec:3 },
+  { id:'t30y',     label:'30Y Treasury (%)',   cat:'rates',       color:'#818cf8', unit:'%',     dec:3 },
+  { id:'spread',   label:'2Y/10Y Spread',      cat:'rates',       color:'#fb923c', unit:'%',     dec:2 },
 ];
 
 const CATS = [
@@ -1404,9 +1406,10 @@ async function loadFromAPI() {
       'Oil WTI ($/bbl)':   'oil',
       'Nat Gas ($/MMBtu)': 'gas',
       'Fed Funds Rate':    'fedFunds',
-      '2Y Treasury (%)':   't3m',
-      '5Y Treasury (%)':   't1y',
-      '10Y Treasury (%)':  't1y',
+      '2Y Treasury (%)':   't2y',
+      '5Y Treasury (%)':   't5y',
+      '10Y Treasury (%)':  't10y',
+      '30Y Treasury (%)':  't30y',
       '2Y/10Y Spread':     'spread',
     };
 
@@ -1665,6 +1668,9 @@ function renderDashboard() {
   // Market monitor table
   const tableHTML = buildMarketTable(cur, prior);
 
+  // Performance summary
+  const perfHTML = buildPerformanceTable(weeks);
+
   // Heatmap
   const heatHTML = buildHeatmap(weeks);
 
@@ -1698,6 +1704,7 @@ function renderDashboard() {
       </div>
       ${summaryHTML}
       ${tableHTML}
+      ${perfHTML}
       ${heatHTML}
       ${notesHTML}
     </div>`;
@@ -1726,7 +1733,7 @@ function buildMarketTable(cur, prior) {
   return `
     <div class="table-wrap">
       <div class="table-header">
-        <span class="table-title">Market Monitor — Week ${cur.id} (${getWeekDate(cur.id)})</span>
+        <span class="table-title">Market Monitor — Week ${cur.id}</span>
       </div>
       <table>
         <thead>
@@ -1736,6 +1743,66 @@ function buildMarketTable(cur, prior) {
             <th>Prior Week</th>
             <th>Change</th>
             <th>% Change</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function buildPerformanceTable(weeks) {
+  if (weeks.length === 0) return '';
+  const cur    = weeks[weeks.length - 1];
+  const curIdx = weeks.length - 1;
+
+  const w1w = curIdx >= 1  ? weeks[curIdx - 1]  : null;
+  const w3m = curIdx >= 13 ? weeks[curIdx - 13] : weeks[0];
+  const w1y = curIdx >= 52 ? weeks[curIdx - 52] : null;
+
+  const perfIds = ['sp500','nasdaq','ftse','dax','gold','oil','gas','t2y','t5y','t10y','t30y'];
+  const perfAssets = ASSETS.filter(a => perfIds.includes(a.id));
+
+  const calcPct = (curVal, refVal) => {
+    if (curVal == null || refVal == null || refVal === 0) return null;
+    return ((curVal - refVal) / Math.abs(refVal)) * 100;
+  };
+
+  const fmtCell = p => {
+    if (p === null) return `<td class="val-num neutral">—</td>`;
+    const cls = p > 0.005 ? 'pos' : p < -0.005 ? 'neg' : 'neutral';
+    return `<td class="val-num ${cls}">${p >= 0 ? '+' : ''}${p.toFixed(2)}%</td>`;
+  };
+
+  let rows = '';
+  CATS.forEach(cat => {
+    const assets = perfAssets.filter(a => a.cat === cat.id);
+    if (!assets.length) return;
+    rows += `<tr class="cat-row"><td colspan="5"><span class="asset-dot" style="background:${CAT_COLORS[cat.id]}"></span>${cat.label}</td></tr>`;
+    assets.forEach(a => {
+      const cv = cur[a.id];
+      rows += `
+        <tr class="data-row">
+          <td><div class="asset-name-cell"><span class="asset-dot" style="background:${a.color}"></span>${a.label}</div></td>
+          <td class="val-num">${fmtVal(a, cv)}</td>
+          ${fmtCell(calcPct(cv, w1w?.[a.id]))}
+          ${fmtCell(calcPct(cv, w3m?.[a.id]))}
+          ${fmtCell(calcPct(cv, w1y?.[a.id]))}
+        </tr>`;
+    });
+  });
+
+  const w3mNote = curIdx < 13 ? ` (${weeks.length} wks of data)` : '';
+  const w1yNote = !w1y ? ' (insufficient data)' : '';
+
+  return `
+    <div class="table-wrap" style="margin-top:24px">
+      <div class="table-header">
+        <span class="table-title">Performance Summary</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Asset</th><th>Current</th><th>1 Week</th><th>3 Month${w3mNote}</th><th>1 Year${w1yNote}</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
