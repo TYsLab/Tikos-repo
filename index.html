@@ -1753,75 +1753,64 @@ function buildMarketTable(cur, prior) {
 function buildPerformanceTable(weeks) {
   if (weeks.length === 0) return '';
   const curIdx = weeks.length - 1;
+  const cur    = weeks[curIdx];
 
-  const perfIds = ['sp500','nasdaq','ftse','dax','vix','gold','oil','gas','t2y','t5y','t10y','t30y'];
-  const perfAssets = ASSETS.filter(a => perfIds.includes(a.id));
-
-  const calcPct = (cur, ref) => {
-    if (cur == null || ref == null || ref === 0) return null;
-    return ((cur - ref) / Math.abs(ref)) * 100;
-  };
-
-  const fmtCell = p => {
-    if (p === null) return `<td class="val-num neutral" style="font-size:11px">—</td>`;
-    const cls = p > 0.005 ? 'pos' : p < -0.005 ? 'neg' : 'neutral';
-    return `<td class="val-num ${cls}" style="font-size:11px">${p >= 0 ? '+' : ''}${p.toFixed(2)}%</td>`;
-  };
-
-  // Week headers — one column per week showing 1W % change
-  const weekCols = weeks.map(w => `<th style="text-align:right;padding:6px 8px;font-size:10px;color:var(--text3);white-space:nowrap">W${w.id}<br><span style="color:var(--text3);font-weight:400">1W%</span></th>`).join('');
-
-  // 3M = 13 weeks back from most recent; 1Y = 52 weeks back
   const w3m = curIdx >= 13 ? weeks[curIdx - 13] : weeks[0];
   const w1y = curIdx >= 52 ? weeks[curIdx - 52] : null;
-  const w3mLabel = curIdx >= 13 ? '3 Month' : `Since W1`;
-  const w1yLabel = w1y ? '1 Year' : '1 Year*';
+  const isRates = a => a.cat === 'rates';
+
+  const cell = (a, curVal, refVal) => {
+    if (curVal == null || refVal == null) return `<td class="val-num neutral">—</td>`;
+    let display, val;
+    if (isRates(a)) {
+      // Basis points: (cur% - ref%) * 100
+      val = (curVal - refVal) * 100;
+      display = `${val >= 0 ? '+' : ''}${val.toFixed(0)} bps`;
+    } else {
+      val = ((curVal - refVal) / Math.abs(refVal)) * 100;
+      display = `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
+    }
+    const color = val > 0 ? 'var(--green)' : val < 0 ? 'var(--red)' : 'var(--text2)';
+    return `<td class="val-num" style="color:${color};font-weight:500">${display}</td>`;
+  };
 
   let rows = '';
   CATS.forEach(cat => {
-    const assets = perfAssets.filter(a => a.cat === cat.id);
-    if (!assets.length) return;
-    const colspan = weeks.length + 4;
-    rows += `<tr class="cat-row"><td colspan="${colspan}"><span class="asset-dot" style="background:${CAT_COLORS[cat.id]}"></span>${cat.label}</td></tr>`;
+    const assets = ASSETS.filter(a => a.cat === cat.id);
+    rows += `<tr class="cat-row"><td colspan="4"><span class="asset-dot" style="background:${CAT_COLORS[cat.id]}"></span>${cat.label}</td></tr>`;
     assets.forEach(a => {
-      const cur = weeks[curIdx];
-      const cv  = cur[a.id];
-
-      // 1W % for each week
-      const weekCells = weeks.map((w, i) => {
-        const prev = i > 0 ? weeks[i - 1] : null;
-        return fmtCell(prev ? calcPct(w[a.id], prev[a.id]) : null);
-      }).join('');
-
+      const cv = cur[a.id];
       rows += `
         <tr class="data-row">
-          <td style="white-space:nowrap"><div class="asset-name-cell"><span class="asset-dot" style="background:${a.color}"></span>${a.label}</div></td>
-          <td class="val-num" style="font-size:11px">${fmtVal(a, cv)}</td>
-          ${weekCells}
-          ${fmtCell(calcPct(cv, w3m?.[a.id]))}
-          ${fmtCell(calcPct(cv, w1y?.[a.id]))}
+          <td><div class="asset-name-cell"><span class="asset-dot" style="background:${a.color}"></span>${a.label}</div></td>
+          <td class="val-num">${fmtVal(a, cv)}</td>
+          ${cell(a, cv, w3m?.[a.id])}
+          ${cell(a, cv, w1y?.[a.id])}
         </tr>`;
     });
   });
 
+  const w3mLabel = curIdx >= 13 ? '3 Month' : `3 Month (W1→now)`;
+  const w1yLabel = w1y ? '1 Year' : '1 Year —';
+
   return `
-    <div class="table-wrap" style="margin-top:24px;overflow-x:auto">
+    <div class="table-wrap" style="margin-top:24px">
       <div class="table-header">
-        <span class="table-title">Performance — Week-by-Week, 3 Month &amp; 1 Year</span>
+        <span class="table-title">Performance</span>
+        <span style="font-size:11px;color:var(--text3)">Yields in basis points, all others in %</span>
       </div>
-      <table style="min-width:100%">
+      <table>
         <thead>
           <tr>
-            <th style="text-align:left;white-space:nowrap">Asset</th>
-            <th style="text-align:right;white-space:nowrap;font-size:11px">Current</th>
-            ${weekCols}
-            <th style="text-align:right;white-space:nowrap;font-size:11px;color:var(--cyan)">${w3mLabel}</th>
-            <th style="text-align:right;white-space:nowrap;font-size:11px;color:var(--purple)">${w1yLabel}</th>
+            <th>Asset</th>
+            <th>Current</th>
+            <th style="color:var(--cyan)">${w3mLabel}</th>
+            <th style="color:var(--purple)">${w1yLabel}</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
-      ${!w1y ? `<div style="font-size:11px;color:var(--text3);padding:8px 12px">* 1 Year requires 52 weeks of data (${weeks.length} weeks available)</div>` : ''}
+      ${!w1y ? `<div style="font-size:11px;color:var(--text3);padding:6px 12px">1 Year available after 52 weeks of data (${weeks.length} collected)</div>` : ''}
     </div>`;
 }
 
