@@ -1752,61 +1752,76 @@ function buildMarketTable(cur, prior) {
 
 function buildPerformanceTable(weeks) {
   if (weeks.length === 0) return '';
-  const cur    = weeks[weeks.length - 1];
   const curIdx = weeks.length - 1;
-
-  const w1w = curIdx >= 1  ? weeks[curIdx - 1]  : null;
-  const w3m = curIdx >= 13 ? weeks[curIdx - 13] : weeks[0];
-  const w1y = curIdx >= 52 ? weeks[curIdx - 52] : null;
 
   const perfIds = ['sp500','nasdaq','ftse','dax','vix','gold','oil','gas','t2y','t5y','t10y','t30y'];
   const perfAssets = ASSETS.filter(a => perfIds.includes(a.id));
 
-  const calcPct = (curVal, refVal) => {
-    if (curVal == null || refVal == null || refVal === 0) return null;
-    return ((curVal - refVal) / Math.abs(refVal)) * 100;
+  const calcPct = (cur, ref) => {
+    if (cur == null || ref == null || ref === 0) return null;
+    return ((cur - ref) / Math.abs(ref)) * 100;
   };
 
   const fmtCell = p => {
-    if (p === null) return `<td class="val-num neutral">—</td>`;
+    if (p === null) return `<td class="val-num neutral" style="font-size:11px">—</td>`;
     const cls = p > 0.005 ? 'pos' : p < -0.005 ? 'neg' : 'neutral';
-    return `<td class="val-num ${cls}">${p >= 0 ? '+' : ''}${p.toFixed(2)}%</td>`;
+    return `<td class="val-num ${cls}" style="font-size:11px">${p >= 0 ? '+' : ''}${p.toFixed(2)}%</td>`;
   };
+
+  // Week headers — one column per week showing 1W % change
+  const weekCols = weeks.map(w => `<th style="text-align:right;padding:6px 8px;font-size:10px;color:var(--text3);white-space:nowrap">W${w.id}<br><span style="color:var(--text3);font-weight:400">1W%</span></th>`).join('');
+
+  // 3M = 13 weeks back from most recent; 1Y = 52 weeks back
+  const w3m = curIdx >= 13 ? weeks[curIdx - 13] : weeks[0];
+  const w1y = curIdx >= 52 ? weeks[curIdx - 52] : null;
+  const w3mLabel = curIdx >= 13 ? '3 Month' : `Since W1`;
+  const w1yLabel = w1y ? '1 Year' : '1 Year*';
 
   let rows = '';
   CATS.forEach(cat => {
     const assets = perfAssets.filter(a => a.cat === cat.id);
     if (!assets.length) return;
-    rows += `<tr class="cat-row"><td colspan="5"><span class="asset-dot" style="background:${CAT_COLORS[cat.id]}"></span>${cat.label}</td></tr>`;
+    const colspan = weeks.length + 4;
+    rows += `<tr class="cat-row"><td colspan="${colspan}"><span class="asset-dot" style="background:${CAT_COLORS[cat.id]}"></span>${cat.label}</td></tr>`;
     assets.forEach(a => {
-      const cv = cur[a.id];
+      const cur = weeks[curIdx];
+      const cv  = cur[a.id];
+
+      // 1W % for each week
+      const weekCells = weeks.map((w, i) => {
+        const prev = i > 0 ? weeks[i - 1] : null;
+        return fmtCell(prev ? calcPct(w[a.id], prev[a.id]) : null);
+      }).join('');
+
       rows += `
         <tr class="data-row">
-          <td><div class="asset-name-cell"><span class="asset-dot" style="background:${a.color}"></span>${a.label}</div></td>
-          <td class="val-num">${fmtVal(a, cv)}</td>
-          ${fmtCell(calcPct(cv, w1w?.[a.id]))}
+          <td style="white-space:nowrap"><div class="asset-name-cell"><span class="asset-dot" style="background:${a.color}"></span>${a.label}</div></td>
+          <td class="val-num" style="font-size:11px">${fmtVal(a, cv)}</td>
+          ${weekCells}
           ${fmtCell(calcPct(cv, w3m?.[a.id]))}
           ${fmtCell(calcPct(cv, w1y?.[a.id]))}
         </tr>`;
     });
   });
 
-  const w3mNote = curIdx < 13 ? ` (${weeks.length} wks of data)` : '';
-  const w1yNote = !w1y ? ' (insufficient data)' : '';
-
   return `
-    <div class="table-wrap" style="margin-top:24px">
+    <div class="table-wrap" style="margin-top:24px;overflow-x:auto">
       <div class="table-header">
-        <span class="table-title">Performance Summary</span>
+        <span class="table-title">Performance — Week-by-Week, 3 Month &amp; 1 Year</span>
       </div>
-      <table>
+      <table style="min-width:100%">
         <thead>
           <tr>
-            <th>Asset</th><th>Current</th><th>1 Week</th><th>3 Month${w3mNote}</th><th>1 Year${w1yNote}</th>
+            <th style="text-align:left;white-space:nowrap">Asset</th>
+            <th style="text-align:right;white-space:nowrap;font-size:11px">Current</th>
+            ${weekCols}
+            <th style="text-align:right;white-space:nowrap;font-size:11px;color:var(--cyan)">${w3mLabel}</th>
+            <th style="text-align:right;white-space:nowrap;font-size:11px;color:var(--purple)">${w1yLabel}</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
+      ${!w1y ? `<div style="font-size:11px;color:var(--text3);padding:8px 12px">* 1 Year requires 52 weeks of data (${weeks.length} weeks available)</div>` : ''}
     </div>`;
 }
 
