@@ -1370,7 +1370,19 @@ let chartInstance = null;
 
 // ─── STORAGE ─────────────────────────────────────────────────────────────────
 
-const API_URL = 'https://ty-market-function-dqddapd6gwahe7hd.westus2-01.azurewebsites.net/api/market-data';
+const API_URL  = 'https://ty-market-function-dqddapd6gwahe7hd.westus2-01.azurewebsites.net/api/market-data';
+const PERF_URL = 'https://ty-market-function-dqddapd6gwahe7hd.westus2-01.azurewebsites.net/api/market-performance';
+
+let perfData = {}; // { "S&P 500": { current, price_3m, price_1y }, ... }
+
+async function loadPerfData() {
+  try {
+    const res = await fetch(PERF_URL);
+    perfData = await res.json();
+  } catch(e) {
+    console.warn('Performance data unavailable:', e);
+  }
+}
 
 function loadData() {
   try {
@@ -1757,20 +1769,30 @@ function buildPerformanceTable(weeks) {
 
   const w3m = curIdx >= 13 ? weeks[curIdx - 13] : weeks[0];
   const w1y = curIdx >= 52 ? weeks[curIdx - 52] : null;
+  // Map website asset IDs → API asset names
+  const ID_TO_NAME = {
+    sp500:    'S&P 500',       nasdaq:   'NASDAQ Composite',
+    ftse:     'FTSE 100',      dax:      'DAX',
+    vix:      'VIX',           gold:     'Gold ($/oz)',
+    oil:      'Oil WTI ($/bbl)', gas:    'Nat Gas ($/MMBtu)',
+    fedFunds: 'Fed Funds Rate', t2y:     '2Y Treasury (%)',
+    t5y:      '5Y Treasury (%)', t10y:   '10Y Treasury (%)',
+    t30y:     '30Y Treasury (%)', spread: '2Y/10Y Spread',
+  };
+
   const isRates = a => a.cat === 'rates';
 
   const cell = (a, curVal, refVal) => {
     if (curVal == null || refVal == null) return `<td class="val-num neutral">—</td>`;
     let display, val;
     if (isRates(a)) {
-      // Basis points: (cur% - ref%) * 100
       val = (curVal - refVal) * 100;
       display = `${val >= 0 ? '+' : ''}${val.toFixed(0)} bps`;
     } else {
       val = ((curVal - refVal) / Math.abs(refVal)) * 100;
       display = `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
     }
-    const color = val > 0 ? 'var(--green)' : val < 0 ? 'var(--red)' : 'var(--text2)';
+    const color = val > 0.05 ? 'var(--green)' : val < -0.05 ? 'var(--red)' : 'var(--text2)';
     return `<td class="val-num" style="color:${color};font-weight:500">${display}</td>`;
   };
 
@@ -1779,13 +1801,17 @@ function buildPerformanceTable(weeks) {
     const assets = ASSETS.filter(a => a.cat === cat.id);
     rows += `<tr class="cat-row"><td colspan="4"><span class="asset-dot" style="background:${CAT_COLORS[cat.id]}"></span>${cat.label}</td></tr>`;
     assets.forEach(a => {
-      const cv = cur[a.id];
+      const name   = ID_TO_NAME[a.id];
+      const p      = perfData[name];
+      const curVal = p?.current ?? cur[a.id];
+      const p3m    = p?.price_3m ?? null;
+      const p1y    = p?.price_1y ?? null;
       rows += `
         <tr class="data-row">
           <td><div class="asset-name-cell"><span class="asset-dot" style="background:${a.color}"></span>${a.label}</div></td>
-          <td class="val-num">${fmtVal(a, cv)}</td>
-          ${cell(a, cv, w3m?.[a.id])}
-          ${cell(a, cv, w1y?.[a.id])}
+          <td class="val-num">${fmtVal(a, curVal)}</td>
+          ${cell(a, curVal, p3m)}
+          ${cell(a, curVal, p1y)}
         </tr>`;
     });
   });
@@ -2578,7 +2604,7 @@ function escHtml(str) {
 
 document.addEventListener('DOMContentLoaded', async () => {
   setupTooltips();
-  await loadFromAPI();
+  await Promise.all([loadFromAPI(), loadPerfData()]);
   navigate('dashboard');
 });
 </script>

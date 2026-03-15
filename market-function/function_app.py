@@ -145,6 +145,74 @@ def market_api(req: func.HttpRequest) -> func.HttpResponse:
         logging.error(f"market_api error: {e}")
         return func.HttpResponse(str(e), status_code=500)
 
+# ─── PERFORMANCE ENDPOINT ────────────────────────────────────────────────────
+# Returns current, 3-month-ago, and 1-year-ago prices for all assets
+
+@app.route(route="market-performance", auth_level=func.AuthLevel.ANONYMOUS)
+def market_performance(req: func.HttpRequest) -> func.HttpResponse:
+    import json, yfinance as yf
+
+    today   = datetime.today()
+    d_3m    = today - timedelta(days=91)
+    d_1y    = today - timedelta(days=365)
+    start   = d_1y - timedelta(days=10)
+
+    def closest(df, target):
+        ts = target.replace(tzinfo=None)
+        idx = df.index.searchsorted(ts)
+        if idx >= len(df): idx = len(df) - 1
+        if idx > 0 and abs((df.index[idx-1] - ts).days) < abs((df.index[idx] - ts).days):
+            idx -= 1
+        return round(float(df["Close"].iloc[idx]), 4)
+
+    results = {}
+
+    # Yahoo Finance
+    for name, ticker in YAHOO_TICKERS.items():
+        try:
+            t  = yf.Ticker(ticker)
+            df = t.history(start=start.strftime("%Y-%m-%d"), interval="1d")
+            if df.empty: continue
+            df.index = df.index.tz_localize(None) if df.index.tzinfo else df.index
+            results[name] = {
+                "current":  round(float(df["Close"].iloc[-1]), 4),
+                "price_3m": closest(df, d_3m),
+                "price_1y": closest(df, d_1y),
+            }
+            logging.info(f"Perf | {name}: {results[name]['current']}")
+        except Exception as e:
+            logging.warning(f"Perf Yahoo | {name}: {e}")
+
+    # FRED rates
+    def fred_on(series_id, d):
+        url = (
+            f"https://api.stlouisfed.org/fred/series/observations"
+            f"?series_id={series_id}&api_key={FRED_API_KEY}&file_type=json"
+            f"&observation_start={d.strftime('%Y-%m-%d')}"
+            f"&observation_end={(d + timedelta(days=10)).strftime('%Y-%m-%d')}"
+            f"&sort_order=asc&limit=5"
+        )
+        obs = requests.get(url, timeout=10).json().get("observations", [])
+        for o in obs:
+            if o["value"] != ".":
+                return round(float(o["value"]), 4)
+        return None
+
+    for name, series_id in FRED_SERIES.items():
+        try:
+            cur  = fred_on(series_id, today - timedelta(days=5))
+            p3m  = fred_on(series_id, d_3m)
+            p1y  = fred_on(series_id, d_1y)
+            results[name] = {"current": cur, "price_3m": p3m, "price_1y": p1y}
+        except Exception as e:
+            logging.warning(f"Perf FRED | {name}: {e}")
+
+    return func.HttpResponse(
+        body=json.dumps(results),
+        mimetype="application/json",
+        headers={"Access-Control-Allow-Origin": "*"}
+    )
+
 # ─── TIMER TRIGGER ────────────────────────────────────────────────────────────
 # Runs every Thursday at 9 PM UTC (4 PM EST / 5 PM EDT)
 
