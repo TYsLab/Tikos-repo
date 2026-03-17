@@ -23,8 +23,8 @@
   --blue:     #0a0a0a;
   --blue-dim: #333333;
   --cyan:     #222222;
-  --green:    #0a0a0a;
-  --red:      #cc0000;
+  --green:    #16a34a;
+  --red:      #dc2626;
   --gold:     #444444;
   --purple:   #666666;
   --sidebar: 240px;
@@ -1255,6 +1255,165 @@ body.cursor-text  #cursor-ring { width: 0; height: 0; opacity: 0; }
   --delay: 0.32s;
 }
 
+/* ── MORNING BRIEFING ───────────────────────────── */
+.briefing-run-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 24px; border-radius: var(--radius);
+  background: var(--text); color: var(--bg);
+  font-size: 14px; font-weight: 600; border: none; cursor: pointer;
+  transition: opacity 0.15s;
+}
+.briefing-run-btn:hover { opacity: 0.85; }
+.briefing-run-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.briefing-status {
+  font-size: 13px; color: var(--text3);
+  display: flex; align-items: center; gap: 8px; margin-top: 10px;
+  min-height: 20px;
+}
+.briefing-spinner {
+  width: 14px; height: 14px; border: 2px solid var(--border2);
+  border-top-color: var(--text); border-radius: 50%;
+  animation: spin 0.7s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.sentiment-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+}
+.sentiment-pill.bull { background: rgba(22,163,74,0.12); color: var(--green); }
+.sentiment-pill.bear { background: rgba(220,38,38,0.12); color: var(--red); }
+.sentiment-pill.neut { background: rgba(0,0,0,0.06); color: var(--text3); }
+
+.sentiment-bar-wrap {
+  height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; flex: 1;
+}
+.sentiment-bar-fill {
+  height: 100%; border-radius: 3px; transition: width 0.5s ease;
+}
+
+.story-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.story-card:hover { border-color: var(--border2); }
+.story-title { font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.4; }
+.story-meta  { font-size: 11px; color: var(--text3); display: flex; align-items: center; gap: 8px; }
+.story-summary { font-size: 12px; color: var(--text2); line-height: 1.5; }
+.story-tickers { display: flex; gap: 5px; flex-wrap: wrap; }
+.ticker-badge {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600;
+  padding: 2px 6px; border-radius: 4px;
+  background: rgba(0,0,0,0.06); color: var(--text2);
+}
+
+.idea-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+}
+.idea-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.idea-ticker { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: var(--text); }
+.idea-dir {
+  font-size: 11px; font-weight: 700; padding: 3px 8px;
+  border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.idea-dir.long  { background: rgba(22,163,74,0.12);  color: var(--green); }
+.idea-dir.short { background: rgba(220,38,38,0.12);  color: var(--red); }
+.idea-dir.watch { background: rgba(0,0,0,0.06);      color: var(--text3); }
+.idea-conf { font-size: 12px; color: var(--text3); margin-left: auto; }
+.idea-row  { font-size: 12px; color: var(--text2); margin-bottom: 4px; line-height: 1.5; }
+.idea-row strong { color: var(--text); font-weight: 600; }
+
+.alert-card {
+  background: rgba(220,38,38,0.04); border: 1px solid rgba(220,38,38,0.2);
+  border-radius: var(--radius); padding: 12px 16px;
+}
+.alert-title   { font-size: 13px; font-weight: 500; color: var(--text); }
+.alert-summary { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+/* ── WEEK RECAP PANEL ───────────────────────────── */
+.recap-panel {
+  position: fixed;
+  top: 20px;
+  right: -420px;
+  width: 380px;
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 48px rgba(0,0,0,0.14);
+  z-index: 300;
+  overflow: hidden;
+  transition: right 0.55s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.recap-panel.visible { right: 20px; }
+.recap-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.recap-panel-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text3);
+}
+.recap-panel-week {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  padding: 0 18px 4px;
+  margin-top: 8px;
+}
+.recap-panel-body {
+  padding: 10px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.recap-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+.recap-asset { color: var(--text2); }
+.recap-val { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text); }
+.recap-chg { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; min-width: 64px; text-align: right; }
+.recap-chg.pos { color: var(--green); }
+.recap-chg.neg { color: var(--red); }
+.recap-chg.neu { color: var(--text3); }
+.recap-close-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--text3); padding: 2px; border-radius: 4px;
+  display: flex; align-items: center;
+  transition: color 0.15s;
+}
+.recap-close-btn:hover { color: var(--text); }
+.recap-progress {
+  height: 2px;
+  background: var(--border);
+  margin: 0 18px 14px;
+  border-radius: 1px;
+  overflow: hidden;
+}
+.recap-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green), #22c55e);
+  width: 100%;
+  transform-origin: left;
+  animation: recapTimer 7s linear forwards;
+}
+@keyframes recapTimer {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
 /* ── PAGE TRANSITION ANIMATION ───────────────────── */
 @keyframes pageIn {
   from { opacity: 0; transform: translateX(-12px); }
@@ -1375,6 +1534,12 @@ body.cursor-text  #cursor-ring { width: 0; height: 0; opacity: 0; }
         </svg>
         Charts
       </button>
+      <button class="nav-link" onclick="navigate('briefing')" id="nav-briefing">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        Morning Briefing
+      </button>
     </nav>
 
     <div class="sidebar-footer">
@@ -1397,6 +1562,19 @@ body.cursor-text  #cursor-ring { width: 0; height: 0; opacity: 0; }
 
 <!-- Toast container -->
 <div class="toast-container" id="toast-container"></div>
+
+<!-- Week Recap Slide-In Panel -->
+<div class="recap-panel" id="recap-panel">
+  <div class="recap-panel-header">
+    <span class="recap-panel-title">Weekly Recap</span>
+    <button class="recap-close-btn" onclick="closeWeekRecap()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="recap-panel-week" id="recap-week-label">—</div>
+  <div class="recap-panel-body" id="recap-body"></div>
+  <div class="recap-progress"><div class="recap-progress-fill" id="recap-progress"></div></div>
+</div>
 
 <script>
 'use strict';
@@ -1772,6 +1950,59 @@ function getWeekDate(n) {
   return `Week ${n}`;
 }
 
+// ─── WEEK RECAP PANEL ────────────────────────────────────────────────────────
+
+let recapTimeout = null;
+
+function showWeekRecap(cur, prior) {
+  const panel = document.getElementById('recap-panel');
+  const label = document.getElementById('recap-week-label');
+  const body  = document.getElementById('recap-body');
+  const prog  = document.getElementById('recap-progress');
+  if (!panel || !cur) return;
+
+  label.textContent = `Week ${cur.id} — Latest Data`;
+
+  // Key assets to show in recap
+  const recapAssets = [
+    ASSETS.find(a => a.id === 'sp500'),
+    ASSETS.find(a => a.id === 'nasdaq'),
+    ASSETS.find(a => a.id === 'gold'),
+    ASSETS.find(a => a.id === 'oil'),
+    ASSETS.find(a => a.id === 'vix'),
+    ASSETS.find(a => a.id === 't10y'),
+  ].filter(Boolean);
+
+  body.innerHTML = recapAssets.map(a => {
+    const val  = cur[a.id];
+    const prev = prior ? prior[a.id] : null;
+    const chg  = (val != null && prev != null) ? getChange(val, prev) : null;
+    const cls  = chg ? (chg.pct >= 0 ? 'pos' : 'neg') : 'neu';
+    const chgStr = chg ? (chg.pct >= 0 ? '+' : '') + chg.pct.toFixed(2) + '%' : '—';
+    return `<div class="recap-row">
+      <span class="recap-asset">${a.label}</span>
+      <span class="recap-val">${fmtVal(a, val)}</span>
+      <span class="recap-chg ${cls}">${chgStr}</span>
+    </div>`;
+  }).join('');
+
+  // Reset animation on progress bar
+  prog.style.animation = 'none';
+  prog.offsetHeight; // reflow
+  prog.style.animation = '';
+
+  panel.classList.add('visible');
+
+  if (recapTimeout) clearTimeout(recapTimeout);
+  recapTimeout = setTimeout(closeWeekRecap, 7500);
+}
+
+function closeWeekRecap() {
+  const panel = document.getElementById('recap-panel');
+  if (panel) panel.classList.remove('visible');
+  if (recapTimeout) { clearTimeout(recapTimeout); recapTimeout = null; }
+}
+
 // ─── FORMATTERS ──────────────────────────────────────────────────────────────
 
 function fmtVal(asset, val) {
@@ -1887,7 +2118,7 @@ function navigate(view, params = {}) {
   const main = document.getElementById('main-content');
   main.innerHTML = '';
 
-  const views = { dashboard: renderDashboard, entry: renderEntry, table: renderTable, archive: renderArchive, charts: renderCharts, detail: renderDetail };
+  const views = { dashboard: renderDashboard, entry: renderEntry, table: renderTable, archive: renderArchive, charts: renderCharts, detail: renderDetail, briefing: renderBriefing };
   if (views[view]) views[view](params);
 
   updateSidebar();
@@ -2136,6 +2367,9 @@ function renderDashboard() {
       </div>
       ${notesHTML}
     </div>`;
+
+  // Slide in the weekly recap panel after a short delay
+  setTimeout(() => showWeekRecap(cur, prior), 600);
 }
 
 function buildMarketTable(cur, prior) {
@@ -2276,7 +2510,7 @@ function buildHeatmap(weeks) {
       const bg = heatColor(pct);
       const tipText = `W${w.id} ${a.label}: ${fmtVal(a, w[a.id])}${chg ? ' (' + fmtPct(chg.pct) + ')' : ''}`;
       rowHTML += `<div class="hm-cell" style="background:${bg}" data-tip="${escHtml(tipText)}">
-        ${pct !== null ? `<span style="color:${pct >= 0 ? '#0a0a0a' : '#cc0000'}">${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%</span>` : ''}
+        ${pct !== null ? `<span style="color:${pct >= 0 ? 'var(--green)' : 'var(--red)'};font-weight:600">${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%</span>` : ''}
       </div>`;
     });
     assetRows += `<div style="display:contents">${rowHTML}</div>`;
@@ -2704,7 +2938,58 @@ function renderCharts(params = {}) {
   }
 
   const labels = weeks.map(w => 'Week ' + w.id);
+  const cur    = weeks[weeks.length - 1];
+  const first  = weeks[0];
 
+  // ── Best performers: % change from Week 1 to now ──
+  const performers = ASSETS.map(a => {
+    const base = first[a.id];
+    const now  = cur[a.id];
+    const pct  = (base != null && now != null && base !== 0)
+      ? ((now - base) / Math.abs(base)) * 100 : null;
+    return { a, pct };
+  }).filter(x => x.pct !== null)
+    .sort((x, y) => y.pct - x.pct);
+
+  const perfRows = performers.map((x, i) => {
+    const cls   = x.pct >= 0 ? 'pos' : 'neg';
+    const bar   = Math.min(Math.abs(x.pct) / Math.max(...performers.map(p => Math.abs(p.pct))) * 100, 100);
+    const barColor = x.pct >= 0 ? 'var(--green)' : 'var(--red)';
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 12px;color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11px;width:24px">${i + 1}</td>
+      <td style="padding:8px 12px;color:var(--text2)">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${x.a.color};margin-right:7px"></span>${x.a.label}
+      </td>
+      <td style="padding:8px 12px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;background:var(--border);border-radius:2px;height:4px;max-width:120px">
+            <div style="width:${bar}%;background:${barColor};height:4px;border-radius:2px"></div>
+          </div>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:${barColor};min-width:64px;text-align:right">${x.pct >= 0 ? '+' : ''}${x.pct.toFixed(2)}%</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // ── Master multi-asset % change chart datasets ──
+  const masterDatasets = ASSETS.map(a => {
+    const base = weeks[0][a.id];
+    const data = weeks.map(w => (base != null && base !== 0)
+      ? ((w[a.id] - base) / Math.abs(base)) * 100 : null);
+    return {
+      label: a.label,
+      data,
+      borderColor: a.color,
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      pointRadius: 0,
+      pointHoverRadius: 5,
+      tension: 0.3,
+      spanGaps: true,
+    };
+  });
+
+  // ── Individual category cards ──
   const assetCards = CATS.map(cat => {
     const catAssets = ASSETS.filter(a => a.cat === cat.id);
     const cards = catAssets.map(a => {
@@ -2733,10 +3018,76 @@ function renderCharts(params = {}) {
         <div class="hero-title slide-left" style="--delay:0.12s;font-size:2rem">Asset <em>Charts</em></div>
         <div class="hero-desc slide-left" style="--delay:0.2s">${weeks.length} weeks of price history across ${ASSETS.length} assets</div>
       </div>
+
+      <!-- ── MASTER CHART ── -->
+      <div class="table-wrap fade-up" style="margin-bottom:28px">
+        <div class="table-header">
+          <span class="table-title">All Assets — % Change from Week 1</span>
+          <span style="font-size:11px;color:var(--text3)">Hover for values</span>
+        </div>
+        <div style="padding:16px 20px;height:300px">
+          <canvas id="master-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- ── BEST PERFORMERS ── -->
+      <div class="table-wrap fade-up" style="margin-bottom:28px">
+        <div class="table-header">
+          <span class="table-title">Best Performers — Week 1 → Week ${cur.id}</span>
+          <span style="font-size:11px;color:var(--text3)">Total % change, ranked</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="border-bottom:2px solid var(--border)">
+              <th style="text-align:left;padding:8px 12px;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px">#</th>
+              <th style="text-align:left;padding:8px 12px;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px">Asset</th>
+              <th style="text-align:left;padding:8px 12px;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px">Return</th>
+            </tr>
+          </thead>
+          <tbody>${perfRows}</tbody>
+        </table>
+      </div>
+
+      <!-- ── INDIVIDUAL CHARTS ── -->
+      <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:16px">By Category</div>
       ${assetCards}
     </div>`;
 
-  // Build charts after DOM is ready
+  // ── Build master chart ──
+  const masterCanvas = document.getElementById('master-chart');
+  if (masterCanvas) {
+    new Chart(masterCanvas, {
+      type: 'line',
+      data: { labels, datasets: masterDatasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'bottom',
+            labels: { color: '#555555', boxWidth: 10, font: { size: 10 }, padding: 10 }
+          },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? '+' : ''}${ctx.parsed.y.toFixed(2)}%`
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#999999', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
+          y: {
+            ticks: { color: '#999999', font: { size: 10 }, callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%' },
+            grid: { color: 'rgba(0,0,0,0.06)' },
+            afterDataLimits(scale) { scale.max += 2; scale.min -= 2; }
+          }
+        }
+      }
+    });
+  }
+
+  // ── Build individual mini charts ──
   ASSETS.forEach(a => {
     const canvas = document.getElementById('chart-' + a.id);
     if (!canvas) return;
@@ -2764,12 +3115,272 @@ function renderCharts(params = {}) {
           callbacks: { label: ctx => fmtVal(a, ctx.parsed.y) }
         }},
         scales: {
-          x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: '#1c2d45' } },
-          y: { ticks: { color: '#64748b', font: { size: 10 }, callback: v => fmtVal(a, v) }, grid: { color: '#1c2d45' } }
+          x: { ticks: { color: '#999999', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
+          y: { ticks: { color: '#999999', font: { size: 10 }, callback: v => fmtVal(a, v) }, grid: { color: 'rgba(0,0,0,0.06)' } }
         }
       }
     });
   });
+}
+
+// ─── MORNING BRIEFING ────────────────────────────────────────────────────────
+
+const LOCAL_API = 'http://localhost:8765';
+let _pollInterval = null;
+
+function renderBriefing() {
+  const main = document.getElementById('main-content');
+  main.innerHTML = `
+    <div class="view">
+      <div class="hero-header">
+        <div class="hero-eyebrow slide-left" style="--delay:0.05s">AI Analysis</div>
+        <div class="hero-title slide-left" style="--delay:0.12s;font-size:2rem">Morning <em>Briefing</em></div>
+        <div class="hero-desc slide-left" style="--delay:0.2s">
+          Runs your collector + Gemini analyzer on the latest news, then shows sentiment, top stories, and trade ideas.
+          <br><span style="color:var(--text3);font-size:12px">Requires local server: <code style="background:var(--card2);padding:2px 6px;border-radius:4px">python local_server.py</code></span>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;flex-wrap:wrap">
+        <button class="briefing-run-btn" id="run-btn" onclick="runPipeline()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Run Morning Briefing
+        </button>
+        <button class="btn btn-ghost" onclick="loadBriefing()">↻ Refresh Results</button>
+      </div>
+      <div class="briefing-status" id="briefing-status"></div>
+
+      <div id="briefing-output"></div>
+    </div>`;
+
+  // Auto-load existing results if server is up
+  loadBriefing();
+}
+
+async function runPipeline() {
+  const btn    = document.getElementById('run-btn');
+  const status = document.getElementById('briefing-status');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${LOCAL_API}/api/run-pipeline`, { method: 'POST' });
+    if (!res.ok) {
+      const err = await res.json();
+      showBriefingStatus(err.error || 'Failed to start', false);
+      btn.disabled = false;
+      return;
+    }
+  } catch(e) {
+    showBriefingStatus('Cannot reach local server. Run: python local_server.py', false);
+    btn.disabled = false;
+    return;
+  }
+
+  showBriefingStatus('Collecting news...', true);
+
+  if (_pollInterval) clearInterval(_pollInterval);
+  _pollInterval = setInterval(async () => {
+    try {
+      const res  = await fetch(`${LOCAL_API}/api/pipeline-status`);
+      const data = await res.json();
+      if (data.running) {
+        showBriefingStatus(data.message, true);
+      } else {
+        clearInterval(_pollInterval);
+        _pollInterval = null;
+        btn.disabled = false;
+        if (data.error) {
+          showBriefingStatus('Error: ' + data.error, false);
+        } else {
+          showBriefingStatus('Analysis complete', false);
+          loadBriefing();
+        }
+      }
+    } catch(e) {
+      clearInterval(_pollInterval);
+      _pollInterval = null;
+      btn.disabled = false;
+    }
+  }, 2000);
+}
+
+async function loadBriefing() {
+  const out = document.getElementById('briefing-output');
+  if (!out) return;
+
+  try {
+    const res  = await fetch(`${LOCAL_API}/api/recap`);
+    const data = await res.json();
+    if (data.error) {
+      out.innerHTML = `<div class="empty-state"><div class="empty-title">${data.error}</div></div>`;
+      return;
+    }
+    renderBriefingData(data);
+  } catch(e) {
+    out.innerHTML = `
+      <div class="card" style="text-align:center;padding:32px;color:var(--text3)">
+        <div style="font-size:13px;margin-bottom:8px">Local server not running</div>
+        <code style="font-size:12px;background:var(--card2);padding:6px 12px;border-radius:6px">python local_server.py</code>
+      </div>`;
+  }
+}
+
+function showBriefingStatus(msg, spinning) {
+  const el = document.getElementById('briefing-status');
+  if (!el) return;
+  el.innerHTML = spinning
+    ? `<div class="briefing-spinner"></div><span>${msg}</span>`
+    : `<span style="color:var(--text2)">${msg}</span>`;
+}
+
+function renderBriefingData(d) {
+  const out = document.getElementById('briefing-output');
+  if (!out) return;
+
+  // ── Overall sentiment ──
+  const score = d.overall.score;
+  const label = score > 0.1 ? 'BULLISH' : score < -0.1 ? 'BEARISH' : 'NEUTRAL';
+  const pillCls = score > 0.1 ? 'bull' : score < -0.1 ? 'bear' : 'neut';
+  const barPct  = Math.round(((score + 1) / 2) * 100);
+  const barColor = score > 0.1 ? 'var(--green)' : score < -0.1 ? 'var(--red)' : '#999';
+
+  // ── Stories ──
+  const storyCards = d.stories.map(s => {
+    const sc    = s.sentiment > 0.2 ? 'pos' : s.sentiment < -0.2 ? 'neg' : 'neu';
+    const scol  = sc === 'pos' ? 'var(--green)' : sc === 'neg' ? 'var(--red)' : 'var(--text3)';
+    const badges = s.tickers.map(t => `<span class="ticker-badge">${t}</span>`).join('');
+    const link  = s.url ? `<a href="${s.url}" target="_blank" style="color:var(--text3);text-decoration:none">↗</a>` : '';
+    return `
+      <div class="story-card">
+        <div class="story-title">${s.title} ${link}</div>
+        <div class="story-meta">
+          <span style="color:${scol};font-weight:600;font-family:'JetBrains Mono',monospace">${s.sentiment >= 0 ? '+' : ''}${s.sentiment.toFixed(2)}</span>
+          <span>${s.source}</span>
+          ${badges ? `<div class="story-tickers">${badges}</div>` : ''}
+        </div>
+        ${s.summary ? `<div class="story-summary">${s.summary}</div>` : ''}
+      </div>`;
+  }).join('');
+
+  // ── Trade ideas ──
+  const ideaCards = d.ideas.length === 0
+    ? `<div class="card" style="color:var(--text3);font-size:13px;text-align:center;padding:24px">No trade ideas found in current data.</div>`
+    : d.ideas.map(idea => {
+        const dirCls = idea.direction === 'LONG' ? 'long' : idea.direction === 'SHORT' ? 'short' : 'watch';
+        return `
+          <div class="idea-card">
+            <div class="idea-header">
+              <span class="idea-ticker">${idea.ticker}</span>
+              <span class="idea-dir ${dirCls}">${idea.direction}</span>
+              <span class="idea-conf">${idea.confidence?.toFixed(0) ?? '—'}% confidence</span>
+            </div>
+            ${idea.catalyst ? `<div class="idea-row"><strong>Catalyst:</strong> ${idea.catalyst}</div>` : ''}
+            ${idea.entry    ? `<div class="idea-row"><strong>Entry:</strong> ${idea.entry}</div>` : ''}
+            ${idea.risk     ? `<div class="idea-row"><strong>Risk:</strong> <span style="color:var(--red)">${idea.risk}</span></div>` : ''}
+            <div class="idea-row" style="margin-top:6px;color:var(--text3)">via ${idea.source}</div>
+          </div>`;
+      }).join('');
+
+  // ── Bearish alerts ──
+  const alertCards = d.alerts.map(a => `
+    <div class="alert-card">
+      <div class="alert-title">${a.title}</div>
+      <div class="story-meta" style="margin-top:4px">
+        <span style="color:var(--red);font-weight:600;font-family:'JetBrains Mono',monospace">${a.sentiment.toFixed(2)}</span>
+        <span>${a.source}</span>
+      </div>
+      ${a.summary ? `<div class="alert-summary">${a.summary}</div>` : ''}
+    </div>`).join('');
+
+  // ── Tickers ──
+  const tickerRows = d.tickers.map(t => {
+    const sc   = t.sentiment > 0.2 ? 'var(--green)' : t.sentiment < -0.2 ? 'var(--red)' : 'var(--text2)';
+    const bar  = Math.round(((t.sentiment + 1) / 2) * 100);
+    const bcol = t.sentiment > 0.2 ? 'var(--green)' : t.sentiment < -0.2 ? 'var(--red)' : '#999';
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 12px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:var(--text)">${t.ticker}</td>
+      <td style="padding:7px 12px;color:var(--text3);font-size:12px">${t.mentions}</td>
+      <td style="padding:7px 12px;min-width:180px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="sentiment-bar-wrap">
+            <div class="sentiment-bar-fill" style="width:${bar}%;background:${bcol}"></div>
+          </div>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:${sc};min-width:44px">${t.sentiment >= 0 ? '+' : ''}${t.sentiment.toFixed(2)}</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  out.innerHTML = `
+    <div style="font-size:11px;color:var(--text3);margin-bottom:20px">Generated: ${d.generated_at} · ${d.stats.total} items · ${d.stats.analyzed} analyzed · ${d.stats.ideas} trade ideas</div>
+
+    <!-- Sentiment -->
+    <div class="table-wrap" style="margin-bottom:20px;padding:20px">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--text3)">Overall Sentiment</span>
+        <span class="sentiment-pill ${pillCls}">${label}</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:${barColor}">${score >= 0 ? '+' : ''}${score.toFixed(3)}</span>
+        <div class="sentiment-bar-wrap" style="max-width:200px">
+          <div class="sentiment-bar-fill" style="width:${barPct}%;background:${barColor}"></div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text3);margin-top:10px">
+        <span style="color:var(--green)">▲ ${d.overall.bullish} bullish</span>
+        &nbsp;·&nbsp;
+        <span>${d.overall.neutral} neutral</span>
+        &nbsp;·&nbsp;
+        <span style="color:var(--red)">▼ ${d.overall.bearish} bearish</span>
+      </div>
+    </div>
+
+    ${d.alerts.length > 0 ? `
+    <!-- Alerts -->
+    <div style="margin-bottom:20px">
+      <div class="section-divider" style="margin-bottom:12px">
+        <span class="section-divider-label" style="color:var(--red)">⚠ High-Impact Bearish Alerts</span>
+        <div class="section-divider-line"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">${alertCards}</div>
+    </div>` : ''}
+
+    <!-- Trade Ideas -->
+    <div style="margin-bottom:20px">
+      <div class="section-divider" style="margin-bottom:12px">
+        <span class="section-divider-label">Trade Ideas</span>
+        <div class="section-divider-line"></div>
+        <span class="section-divider-num">${d.ideas.length}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">${ideaCards}</div>
+    </div>
+
+    <!-- Top Stories -->
+    <div style="margin-bottom:20px">
+      <div class="section-divider" style="margin-bottom:12px">
+        <span class="section-divider-label">Top Stories by Impact</span>
+        <div class="section-divider-line"></div>
+        <span class="section-divider-num">${d.stories.length}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">${storyCards}</div>
+    </div>
+
+    <!-- Tickers -->
+    ${d.tickers.length > 0 ? `
+    <div style="margin-bottom:20px">
+      <div class="section-divider" style="margin-bottom:12px">
+        <span class="section-divider-label">Most Mentioned Tickers</span>
+        <div class="section-divider-line"></div>
+      </div>
+      <div class="table-wrap">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="border-bottom:2px solid var(--border)">
+            <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.6px">Ticker</th>
+            <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.6px">Mentions</th>
+            <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.6px">Avg Sentiment</th>
+          </tr></thead>
+          <tbody>${tickerRows}</tbody>
+        </table>
+      </div>
+    </div>` : ''}`;
 }
 
 function setChartCat(cat) {
