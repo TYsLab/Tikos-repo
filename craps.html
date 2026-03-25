@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Craps Simulator</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f0f0; color: #111; min-height: 100vh; overflow-x: hidden; }
+
+/* Layout */
+.app { display: grid; grid-template-columns: 1fr 300px; min-height: 100vh; gap: 0; }
+.left  { padding: 1.25rem; display: flex; flex-direction: column; gap: 0.85rem; }
+.right { background: #fff; border-left: 1px solid #ddd; padding: 1.25rem; overflow-y: auto; }
+
+/* Header */
+.header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; }
+.title { font-size: 1.4rem; font-weight: 800; color: #111; }
+.bankroll-box { background: #fff; border: 2px solid #111; border-radius: 10px; padding: 0.4rem 1.1rem; text-align: center; }
+.bankroll-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: .1em; color: #555; }
+.bankroll-amt { font-size: 1.35rem; font-weight: 800; color: #111; }
+
+/* Dice */
+.dice-area { display: flex; justify-content: center; align-items: center; gap: 2rem; padding: 1rem 1.25rem; background: #fff; border: 2px solid #ddd; border-radius: 14px; }
+.die { width: 68px; height: 68px; background: #fff; border-radius: 10px; display: grid; grid-template: repeat(3,1fr)/repeat(3,1fr); padding: 8px; gap: 4px; box-shadow: 0 2px 10px #0002, inset 0 0 0 1.5px #ccc; transition: transform .15s; }
+.die.rolling { animation: roll 0.5s ease-out; }
+@keyframes roll { 0%{transform:rotate(0) scale(1)} 25%{transform:rotate(90deg) scale(1.1)} 75%{transform:rotate(270deg) scale(1.1)} 100%{transform:rotate(360deg) scale(1)} }
+.dot { border-radius: 50%; background: #111; }
+.dot.off { background: transparent; }
+.dice-total { font-size: 2.4rem; font-weight: 900; color: #111; min-width: 56px; text-align: center; }
+.dice-result { font-size: 0.85rem; color: #666; text-align: center; min-width: 110px; line-height: 1.4; }
+.dice-result.win  { color: #16a34a; font-weight: 700; }
+.dice-result.lose { color: #dc2626; font-weight: 700; }
+.dice-result.point-set { color: #d97706; font-weight: 700; }
+
+/* Phase indicator */
+.phase-bar { display: flex; align-items: center; gap: 1rem; background: #fff; border: 2px solid #ddd; border-radius: 10px; padding: 0.55rem 1.1rem; }
+.phase-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: .1em; color: #888; }
+.phase-val { font-size: 0.95rem; font-weight: 700; color: #111; }
+.point-puck { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.82rem; margin-left: auto; }
+.point-puck.off { background: #e5e5e5; color: #999; border: 2px solid #bbb; }
+.point-puck.on  { background: #111; color: #fff; border: 2px solid #111; }
+
+/* Craps Table — green felt */
+.table-wrap { background: #1a5c2e; border: 4px solid #0f3d1e; border-radius: 18px; padding: 1rem 1rem 0.75rem; }
+.table-title { font-size: 0.62rem; text-transform: uppercase; letter-spacing: .12em; color: #a3d9b1; margin-bottom: 0.6rem; }
+
+.bet-grid { display: grid; gap: 0.45rem; }
+.bet-row { display: flex; gap: 0.45rem; }
+.bet-cell {
+  flex: 1; background: #14512a; border: 1.5px solid #2d7a42; border-radius: 7px;
+  padding: 0.45rem 0.6rem; cursor: pointer; transition: all .15s; position: relative;
+  min-height: 52px; display: flex; flex-direction: column; justify-content: space-between;
+}
+.bet-cell:hover { background: #1e6b38; border-color: #fff; }
+.bet-cell.active { background: #0f3d1e; border-color: #fff; box-shadow: 0 0 0 2px #fff4; }
+.bet-cell.disabled { opacity: 0.3; cursor: not-allowed; }
+
+.bet-name { font-size: 0.72rem; font-weight: 800; color: #fff; letter-spacing: .02em; }
+.bet-odds { font-size: 0.6rem; color: #a3d9b1; }
+.bet-edge { font-size: 0.58rem; }
+.edge-good { color: #86efac; }
+.edge-ok   { color: #fde68a; }
+.edge-bad  { color: #fca5a5; }
+.bet-amount { font-size: 0.75rem; font-weight: 700; color: #fde68a; text-align: right; }
+
+/* Place bets row */
+.place-row { display: flex; gap: 0.4rem; }
+.place-btn {
+  flex: 1; background: #0f3d1e; border: 1.5px solid #2d7a42; border-radius: 7px;
+  padding: 0.45rem 0.2rem; cursor: pointer; transition: all .15s; text-align: center;
+}
+.place-btn:hover { background: #1e6b38; border-color: #fff; }
+.place-btn.active { background: #0a2e15; border-color: #fff; box-shadow: 0 0 0 2px #fff4; }
+.place-btn.is-point { border-color: #fde68a; }
+.place-btn.disabled { opacity: 0.3; cursor: not-allowed; }
+.place-num { font-size: 1rem; font-weight: 900; color: #fff; }
+.place-pay { font-size: 0.58rem; color: #a3d9b1; }
+
+/* Chips */
+.chips-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.chip {
+  width: 44px; height: 44px; border-radius: 50%; cursor: pointer; border: 3px solid transparent;
+  font-weight: 900; font-size: 0.75rem; display: flex; align-items: center; justify-content: center;
+  transition: transform .15s, box-shadow .15s; color: #fff;
+}
+.chip:hover { transform: scale(1.1); box-shadow: 0 4px 12px #0003; }
+.chip.selected { transform: scale(1.15); box-shadow: 0 0 0 3px #111; border-color: #111; }
+.chip-1   { background: #64748b; }
+.chip-5   { background: #dc2626; }
+.chip-10  { background: #2563eb; }
+.chip-25  { background: #16a34a; }
+.chip-100 { background: #7c3aed; }
+
+/* Roll button */
+.roll-btn {
+  width: 100%; padding: 0.85rem; background: #111;
+  color: #fff; font-size: 1.05rem; font-weight: 800; border: none; border-radius: 12px;
+  cursor: pointer; transition: all .15s; letter-spacing: .04em;
+}
+.roll-btn:hover { background: #333; transform: translateY(-1px); box-shadow: 0 4px 12px #0003; }
+.roll-btn:disabled { opacity: .35; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* Stats bar */
+.stats-bar { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.stat-box { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 0.35rem 0.7rem; }
+.stat-label { font-size: 0.58rem; color: #888; text-transform: uppercase; letter-spacing: .05em; }
+.stat-val   { font-size: 0.85rem; font-weight: 700; color: #111; }
+
+/* ── RIGHT PANEL ── */
+.panel-title { font-size: 0.68rem; text-transform: uppercase; letter-spacing: .1em; color: #888; margin-bottom: 0.65rem; font-weight: 700; }
+
+/* Heatmap */
+.heatmap-wrap { background: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 10px; padding: 0.75rem; margin-bottom: 0.85rem; }
+.heatmap-grid { display: grid; grid-template-columns: repeat(11,1fr); gap: 3px; margin-bottom: 0.5rem; }
+.hm-cell { border-radius: 5px; padding: 0.28rem 0.1rem; text-align: center; transition: background .4s; position: relative; cursor: default; }
+.hm-num  { font-size: 0.78rem; font-weight: 900; color: #fff; line-height: 1; text-shadow: 0 1px 2px #0004; }
+.hm-cnt  { font-size: 0.58rem; color: rgba(255,255,255,0.85); font-weight: 600; }
+.hm-exp  { font-size: 0.52rem; color: rgba(255,255,255,0.65); }
+.heatmap-legend { display: flex; align-items: center; gap: 0.4rem; font-size: 0.6rem; color: #888; }
+.legend-bar { flex: 1; height: 6px; border-radius: 3px; background: linear-gradient(to right, #3b82f6, #94a3b8, #f97316, #dc2626); }
+.heatmap-note { font-size: 0.64rem; color: #888; margin-top: 0.45rem; line-height: 1.4; }
+.hm-summary { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.4rem; }
+.hm-tag { font-size: 0.6rem; padding: 0.15rem 0.45rem; border-radius: 20px; font-weight: 700; }
+.hm-tag.hot  { background: #fee2e2; color: #dc2626; }
+.hm-tag.cold { background: #dbeafe; color: #2563eb; }
+.hm-tag.due  { background: #fef9c3; color: #92400e; }
+
+/* Tip box */
+.tip-box { background: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 10px; padding: 0.9rem; margin-bottom: 0.85rem; }
+.tip-icon { font-size: 1rem; margin-bottom: 0.3rem; }
+.tip-title { font-size: 0.8rem; font-weight: 700; color: #111; margin-bottom: 0.3rem; }
+.tip-text  { font-size: 0.76rem; color: #555; line-height: 1.5; }
+.tip-text strong { color: #111; }
+
+/* Log */
+.log-entry { font-size: 0.73rem; padding: 0.3rem 0; border-bottom: 1px solid #eee; display: flex; gap: 0.5rem; }
+.log-roll  { color: #aaa; min-width: 26px; font-weight: 600; }
+.log-msg   { color: #555; flex: 1; }
+.log-msg.win  { color: #16a34a; font-weight: 600; }
+.log-msg.lose { color: #dc2626; font-weight: 600; }
+.log-net   { font-weight: 700; min-width: 46px; text-align: right; }
+.log-net.pos { color: #16a34a; }
+.log-net.neg { color: #dc2626; }
+
+/* Odds cell */
+.odds-cell { border-style: dashed !important; }
+
+/* Dice Probability Strip */
+.prob-strip { background: #fff; border: 2px solid #ddd; border-radius: 12px; padding: 0.7rem 0.9rem; }
+.prob-strip-title { font-size: 0.6rem; text-transform: uppercase; letter-spacing: .1em; color: #888; font-weight: 700; margin-bottom: 0.55rem; display: flex; justify-content: space-between; align-items: center; }
+.prob-grid { display: grid; grid-template-columns: repeat(11, 1fr); gap: 3px; }
+.prob-cell { text-align: center; border-radius: 6px; padding: 0.3rem 0.1rem; background: #f5f5f5; border: 1.5px solid #e0e0e0; transition: all .2s; cursor: default; position: relative; }
+.prob-cell:hover .prob-combos { display: block; }
+.prob-num   { font-size: 0.85rem; font-weight: 900; color: #111; line-height: 1; }
+.prob-ways  { font-size: 0.58rem; color: #888; margin: 0.1rem 0; }
+.prob-pct   { font-size: 0.58rem; font-weight: 700; color: #555; }
+.prob-bar   { width: 100%; height: 3px; border-radius: 2px; background: #ddd; margin-top: 0.25rem; overflow: hidden; }
+.prob-bar-fill { height: 100%; border-radius: 2px; background: #94a3b8; transition: width .3s; }
+/* highlight states */
+.prob-cell.is-seven    { background: #fef2f2; border-color: #dc2626; }
+.prob-cell.is-seven .prob-num { color: #dc2626; }
+.prob-cell.is-seven .prob-bar-fill { background: #dc2626; }
+.prob-cell.is-point    { background: #fff7ed; border-color: #d97706; }
+.prob-cell.is-point .prob-num { color: #d97706; }
+.prob-cell.is-point .prob-bar-fill { background: #d97706; }
+.prob-cell.is-natural  { background: #f0fdf4; border-color: #16a34a; }
+.prob-cell.is-natural .prob-num { color: #16a34a; }
+.prob-cell.is-natural .prob-bar-fill { background: #16a34a; }
+.prob-cell.is-craps    { background: #fef2f2; border-color: #f87171; }
+.prob-cell.is-craps .prob-num { color: #f87171; }
+.prob-cell.is-craps .prob-bar-fill { background: #f87171; }
+.prob-cell.just-rolled { box-shadow: 0 0 0 2.5px #111; }
+/* combos tooltip */
+.prob-combos { display: none; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: #111; color: #fff; border-radius: 8px; padding: 0.5rem 0.65rem; font-size: 0.68rem; white-space: nowrap; z-index: 200; line-height: 1.6; min-width: 90px; }
+/* point-vs-7 context bar */
+.point-context { margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.7rem; color: #555; }
+.ctx-bar { flex: 1; height: 8px; border-radius: 4px; background: #e5e5e5; overflow: hidden; display: flex; }
+.ctx-point { background: #d97706; height: 100%; border-radius: 4px 0 0 4px; transition: width .3s; }
+.ctx-seven { background: #dc2626; height: 100%; border-radius: 0 4px 4px 0; transition: width .3s; }
+
+/* Tooltip */
+.tooltip-wrap { position: relative; }
+.tooltip-wrap:hover .tooltip { display: block; }
+.tooltip { display: none; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: #111; border-radius: 8px; padding: 0.6rem 0.75rem; font-size: 0.73rem; color: #fff; z-index: 100; min-width: 210px; white-space: normal; line-height: 1.45; }
+
+/* Reset */
+.reset-btn { width: 100%; padding: 0.5rem; background: #f0f0f0; border: 1px solid #ccc; color: #555; border-radius: 8px; cursor: pointer; font-size: 0.78rem; margin-top: 0.75rem; }
+.reset-btn:hover { background: #e0e0e0; color: #111; }
+
+/* Recommendation Bar */
+.rec-bar {
+  border-radius: 12px; padding: 0.75rem 1rem;
+  display: flex; gap: 0.75rem; align-items: flex-start;
+  border: 2px solid transparent; transition: all .25s;
+}
+.rec-bar.rec-go     { background: #f0fdf4; border-color: #16a34a; }
+.rec-bar.rec-warn   { background: #fefce8; border-color: #ca8a04; }
+.rec-bar.rec-danger { background: #fef2f2; border-color: #dc2626; }
+.rec-bar.rec-info   { background: #eff6ff; border-color: #2563eb; }
+.rec-icon { font-size: 1.3rem; line-height: 1; flex-shrink: 0; margin-top: 0.05rem; }
+.rec-body { flex: 1; }
+.rec-label { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 0.18rem; }
+.rec-bar.rec-go     .rec-label { color: #15803d; }
+.rec-bar.rec-warn   .rec-label { color: #a16207; }
+.rec-bar.rec-danger .rec-label { color: #b91c1c; }
+.rec-bar.rec-info   .rec-label { color: #1d4ed8; }
+.rec-main { font-size: 0.85rem; font-weight: 700; color: #111; line-height: 1.35; }
+.rec-sub  { font-size: 0.74rem; color: #555; margin-top: 0.2rem; line-height: 1.4; }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .right { border-left: none; border-top: 1px solid #ddd; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- LEFT: Table -->
+<div class="left">
+
+  <div class="header">
+    <div>
+      <div class="title">🎲 Craps Simulator</div>
+      <div style="font-size:0.78rem;color:#64748b;margin-top:0.2rem">Learn the game · click bets · roll the dice</div>
+    </div>
+    <div class="bankroll-box">
+      <div class="bankroll-label">Bankroll</div>
+      <div class="bankroll-amt" id="bankroll">$500</div>
+    </div>
+  </div>
+
+  <!-- Phase -->
+  <div class="phase-bar">
+    <div>
+      <div class="phase-label">Phase</div>
+      <div class="phase-val" id="phase-text">Come-Out Roll</div>
+    </div>
+    <div style="margin-left:1rem">
+      <div class="phase-label">Point</div>
+      <div class="phase-val" id="point-text">None</div>
+    </div>
+    <div class="point-puck off" id="puck">OFF</div>
+  </div>
+
+  <!-- Recommendation Bar -->
+  <div class="rec-bar rec-go" id="rec-bar">
+    <div class="rec-icon" id="rec-icon">🎯</div>
+    <div class="rec-body">
+      <div class="rec-label" id="rec-label">Coach Says</div>
+      <div class="rec-main" id="rec-main">Place a Pass Line bet to start</div>
+      <div class="rec-sub"  id="rec-sub">Select a chip size ($10–25 recommended) then click PASS LINE at the bottom of the table.</div>
+    </div>
+  </div>
+
+  <!-- Dice -->
+  <div class="dice-area">
+    <div class="die" id="die1">
+      <div class="dot off"></div><div class="dot off"></div><div class="dot off"></div>
+      <div class="dot off"></div><div class="dot off"></div><div class="dot off"></div>
+      <div class="dot off"></div><div class="dot off"></div><div class="dot off"></div>
+    </div>
+    <div class="dice-total" id="dice-total">—</div>
+    <div class="dice-result" id="dice-result">Place a bet then roll</div>
+    <div class="die" id="die2">
+      <div class="dot off"></div><div class="dot off"></div><div class="dot off"></div>
+      <div class="dot off"></div><div class="dot off"></div><div class="dot off"></div>
+      <div class="dot off"></div><div class="dot off"></div><div class="dot off"></div>
+    </div>
+  </div>
+
+  <!-- Dice Probability Strip -->
+  <div class="prob-strip">
+    <div class="prob-strip-title">
+      <span>Next Roll Odds — hover any number for combinations</span>
+      <span id="prob-legend" style="font-size:0.58rem">🟢 Natural &nbsp; 🔴 Craps &nbsp; 🟠 Point &nbsp; ⬛ Seven</span>
+    </div>
+    <div class="prob-grid" id="prob-grid"></div>
+    <div class="point-context" id="point-context" style="display:none">
+      <span style="color:#d97706;font-weight:700" id="ctx-point-label"></span>
+      <div class="ctx-bar">
+        <div class="ctx-point" id="ctx-point-bar"></div>
+        <div class="ctx-seven" id="ctx-seven-bar"></div>
+      </div>
+      <span style="color:#dc2626;font-weight:700" id="ctx-seven-label"></span>
+    </div>
+  </div>
+
+  <!-- Main Bets Table -->
+  <div class="table-wrap">
+    <div class="table-title">Betting Layout</div>
+    <div class="bet-grid">
+
+      <!-- Row 1 (TOP / far from player): Place Bets -->
+      <div style="padding: 0.2rem 0 0.4rem">
+        <div class="table-title" style="margin-bottom:0.4rem">PLACE BETS — numbers (active after point set)</div>
+        <div class="place-row">
+          <div class="place-btn disabled tooltip-wrap" id="place-4" onclick="togglePlace(4)">
+            <div class="tooltip">Place the 4. Pays 9:5. House edge 6.7%. Decent but Place 6/8 are better.</div>
+            <div class="place-num">4</div><div class="place-pay">9:5</div>
+          </div>
+          <div class="place-btn disabled tooltip-wrap" id="place-5" onclick="togglePlace(5)">
+            <div class="tooltip">Place the 5. Pays 7:5. House edge 4%.</div>
+            <div class="place-num">5</div><div class="place-pay">7:5</div>
+          </div>
+          <div class="place-btn disabled tooltip-wrap hot" id="place-6" onclick="togglePlace(6)">
+            <div class="tooltip">Place the 6. Pays 7:6. House edge only 1.52%. Best place bet along with 8. If point isn't 6, always consider placing this.</div>
+            <div class="place-num">6</div><div class="place-pay">7:6 ⭐</div>
+          </div>
+          <div class="place-btn disabled tooltip-wrap hot" id="place-8" onclick="togglePlace(8)">
+            <div class="tooltip">Place the 8. Pays 7:6. House edge only 1.52%. Best place bet along with 6. Highly recommended.</div>
+            <div class="place-num">8</div><div class="place-pay">7:6 ⭐</div>
+          </div>
+          <div class="place-btn disabled tooltip-wrap" id="place-9" onclick="togglePlace(9)">
+            <div class="tooltip">Place the 9. Pays 7:5. House edge 4%.</div>
+            <div class="place-num">9</div><div class="place-pay">7:5</div>
+          </div>
+          <div class="place-btn disabled tooltip-wrap" id="place-10" onclick="togglePlace(10)">
+            <div class="tooltip">Place the 10. Pays 9:5. House edge 6.7%.</div>
+            <div class="place-num">10</div><div class="place-pay">9:5</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Field / Any Craps / Any Seven -->
+      <div class="bet-row">
+        <div class="bet-cell tooltip-wrap" id="bet-field" onclick="toggleBet('field')">
+          <div class="tooltip">One-roll bet. Win on 2,3,4,9,10,11,12. Lose on 5,6,7,8. 2 and 12 pay double. Fun but worse odds.</div>
+          <div class="bet-name">FIELD</div>
+          <div class="bet-odds">2=2x, 12=2x, others 1:1</div>
+          <div class="bet-edge edge-ok">House edge: 5.56% ⚠</div>
+          <div class="bet-amount" id="amt-field"></div>
+        </div>
+        <div class="bet-cell tooltip-wrap" id="bet-anycraps" onclick="toggleBet('anycraps')">
+          <div class="tooltip">One-roll bet on 2, 3, or 12. Pays 7:1 but house edge is brutal. Avoid unless you like losing money faster.</div>
+          <div class="bet-name">ANY CRAPS</div>
+          <div class="bet-odds">Pays 7:1</div>
+          <div class="bet-edge edge-bad">House edge: 11.1% ✗</div>
+          <div class="bet-amount" id="amt-anycraps"></div>
+        </div>
+        <div class="bet-cell tooltip-wrap" id="bet-any7" onclick="toggleBet('any7')">
+          <div class="tooltip">Bet that next roll is a 7. Pays 4:1 but true odds are 5:1. Worst bet on the table. Never bet this.</div>
+          <div class="bet-name">ANY SEVEN</div>
+          <div class="bet-odds">Pays 4:1</div>
+          <div class="bet-edge edge-bad">House edge: 16.7% ✗✗</div>
+          <div class="bet-amount" id="amt-any7"></div>
+        </div>
+      </div>
+
+      <!-- Row 3: Come / Don't Come / Odds -->
+      <div class="bet-row">
+        <div class="bet-cell tooltip-wrap disabled" id="bet-come" onclick="toggleBet('come')">
+          <div class="tooltip">Like Pass Line but placed after point is set. Next roll is your "come-out". Win on 7/11, lose on 2/3/12, else sets a come point.</div>
+          <div class="bet-name">COME</div>
+          <div class="bet-odds">Pays 1:1</div>
+          <div class="bet-edge edge-good">House edge: 1.41% ✓</div>
+          <div class="bet-amount" id="amt-come"></div>
+        </div>
+        <div class="bet-cell tooltip-wrap disabled" id="bet-dontcome" onclick="toggleBet('dontcome')">
+          <div class="tooltip">Opposite of Come bet. Available after point is set.</div>
+          <div class="bet-name">DON'T COME</div>
+          <div class="bet-odds">Pays 1:1</div>
+          <div class="bet-edge edge-good">House edge: 1.36% ✓</div>
+          <div class="bet-amount" id="amt-dontcome"></div>
+        </div>
+        <div class="bet-cell odds-cell tooltip-wrap disabled" id="bet-odds" onclick="toggleBet('odds')">
+          <div class="tooltip">The ONLY bet in the casino with ZERO house edge. Back your Pass/Don't Pass bet with true odds. Always take max odds (2x-3x-4x-5x). This is how smart players play.</div>
+          <div class="bet-name">ODDS BET</div>
+          <div class="bet-odds">4/10→2:1 · 5/9→3:2 · 6/8→6:5</div>
+          <div class="bet-edge" style="color:#00ff88;font-weight:700">0% edge — BEST BET</div>
+          <div class="bet-amount" id="amt-odds"></div>
+        </div>
+      </div>
+
+      <!-- Row 4 (BOTTOM / closest to player): Pass Line / Don't Pass -->
+      <div class="bet-row">
+        <div class="bet-cell tooltip-wrap" id="bet-pass" onclick="toggleBet('pass')" style="flex:2">
+          <div class="tooltip">Best bet for beginners. Win on 7/11 on come-out. Lose on 2/3/12. Once point set, win if point rolls before 7.</div>
+          <div class="bet-name">PASS LINE</div>
+          <div class="bet-odds">Pays 1:1</div>
+          <div class="bet-edge edge-good">House edge: 1.41% ✓ — Start here</div>
+          <div class="bet-amount" id="amt-pass"></div>
+        </div>
+        <div class="bet-cell tooltip-wrap" id="bet-dontpass" onclick="toggleBet('dontpass')">
+          <div class="tooltip">Opposite of Pass Line. Win on 2/3 come-out, lose on 7/11. Push on 12. Slightly better odds but unpopular at table.</div>
+          <div class="bet-name">DON'T PASS</div>
+          <div class="bet-odds">Pays 1:1</div>
+          <div class="bet-edge edge-good">House edge: 1.36% ✓</div>
+          <div class="bet-amount" id="amt-dontpass"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Chips -->
+  <div>
+    <div style="font-size:0.7rem;color:#64748b;margin-bottom:0.5rem">SELECT CHIP SIZE THEN CLICK A BET</div>
+    <div class="chips-row">
+      <div class="chip chip-1"  id="chip-1"   onclick="selectChip(1)">$1</div>
+      <div class="chip chip-5"  id="chip-5"   onclick="selectChip(5)">$5</div>
+      <div class="chip chip-10" id="chip-10"  onclick="selectChip(10)">$10</div>
+      <div class="chip chip-25" id="chip-25" onclick="selectChip(25)">$25</div>
+      <div class="chip chip-100" id="chip-100" onclick="selectChip(100)">$100</div>
+      <button class="reset-btn" style="width:auto;padding:0.4rem 0.8rem;margin:0" onclick="clearAllBets()">Clear All Bets</button>
+    </div>
+  </div>
+
+  <!-- Roll Button -->
+  <button class="roll-btn" id="roll-btn" onclick="roll()">🎲 ROLL DICE</button>
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat-box"><div class="stat-label">Rolls</div><div class="stat-val" id="stat-rolls">0</div></div>
+    <div class="stat-box"><div class="stat-label">Won</div><div class="stat-val" id="stat-won" style="color:#4ade80">$0</div></div>
+    <div class="stat-box"><div class="stat-label">Lost</div><div class="stat-val" id="stat-lost" style="color:#f87171">$0</div></div>
+    <div class="stat-box"><div class="stat-label">Net</div><div class="stat-val" id="stat-net">$0</div></div>
+    <div class="stat-box"><div class="stat-label">Total Wagered</div><div class="stat-val" id="stat-wagered">$0</div></div>
+  </div>
+
+</div><!-- end left -->
+
+<!-- RIGHT: Guide Panel -->
+<div class="right">
+  <div class="panel-title">💡 Coach</div>
+
+  <div id="tip-box" class="tip-box">
+    <div class="tip-icon">🎓</div>
+    <div class="tip-title">Welcome to Craps!</div>
+    <div class="tip-text">
+      Start simple: put $25 on the <strong>Pass Line</strong> and hit Roll. That's the best beginner bet with only a 1.41% house edge.<br><br>
+      Hover over any bet to learn what it does.
+    </div>
+  </div>
+
+  <div class="panel-title" style="margin-top:0.5rem">📋 How to Play</div>
+
+  <div class="tip-box" style="margin-bottom:0.75rem">
+    <div class="tip-title">Phase 1: Come-Out Roll</div>
+    <div class="tip-text">
+      • Roll <strong>7 or 11</strong> → Pass Line wins (Natural)<br>
+      • Roll <strong>2, 3, or 12</strong> → Pass Line loses (Craps)<br>
+      • Roll <strong>4,5,6,8,9,10</strong> → That becomes the <strong>Point</strong>
+    </div>
+  </div>
+
+  <div class="tip-box" style="margin-bottom:0.75rem">
+    <div class="tip-title">Phase 2: Point Phase</div>
+    <div class="tip-text">
+      • Roll the <strong>Point number</strong> again → Pass Line wins 🎉<br>
+      • Roll a <strong>7</strong> → Pass Line loses (Seven Out) 💀<br>
+      • Any other number → keep rolling
+    </div>
+  </div>
+
+  <div class="tip-box" style="margin-bottom:0.75rem">
+    <div class="tip-title" style="color:#fbbf24">⭐ Smart Strategy</div>
+    <div class="tip-text">
+      <strong>1.</strong> Always bet Pass Line ($10-25)<br>
+      <strong>2.</strong> Once point is set, take the <strong>Odds Bet</strong> (0% house edge!)<br>
+      <strong>3.</strong> Place the <strong>6 and 8</strong> if they're not your point<br>
+      <strong>4.</strong> Avoid Any 7, Any Craps, Field — they bleed your bankroll<br><br>
+      The Odds Bet is the only bet in any casino with NO house edge. Always take it.
+    </div>
+  </div>
+
+  <div class="tip-box" style="margin-bottom:0.75rem">
+    <div class="tip-title">📊 Odds Quick Reference</div>
+    <div class="tip-text">
+      Ways to roll a 7: <strong>6</strong> (most common)<br>
+      Ways to roll a 6 or 8: <strong>5 each</strong><br>
+      Ways to roll a 5 or 9: <strong>4 each</strong><br>
+      Ways to roll a 4 or 10: <strong>3 each</strong><br><br>
+      That's why 7 kills you after point is set.
+    </div>
+  </div>
+
+  <div class="panel-title" style="margin-top:0.5rem">🌡️ Roll Heatmap</div>
+  <div class="heatmap-wrap">
+    <div class="heatmap-grid" id="heatmap-grid"></div>
+    <div class="heatmap-legend">
+      <span>Cold</span>
+      <div class="legend-bar"></div>
+      <span>Hot</span>
+    </div>
+    <div class="hm-summary" id="hm-summary"></div>
+    <div class="heatmap-note" id="hm-note">Roll the dice to start tracking. Colors show actual vs expected frequency — <strong>red = rolling more than math predicts, blue = less.</strong> Remember: dice have no memory, this is just for fun.</div>
+  </div>
+
+  <div class="panel-title" style="margin-top:0.5rem">📜 Roll Log</div>
+  <div id="roll-log"></div>
+
+  <button class="reset-btn" onclick="resetGame()">↺ Reset Game ($500)</button>
+</div>
+
+</div><!-- end app -->
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let bankroll   = 500;
+let point      = null;       // null = come-out phase, number = point phase
+let selectedChip = 25;
+let bets = {
+  pass: 0, dontpass: 0, come: 0, dontcome: 0,
+  field: 0, anycraps: 0, any7: 0, odds: 0,
+  place: { 4:0, 5:0, 6:0, 8:0, 9:0, 10:0 }
+};
+let comePoint = null;   // for Come bet tracking
+let stats = { rolls: 0, won: 0, lost: 0, wagered: 0 };
+let rolling = false;
+
+// ── Chip selection ─────────────────────────────────────────────────────────
+function selectChip(val) {
+  selectedChip = val;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+  document.getElementById('chip-' + val).classList.add('selected');
+}
+selectChip(25);
+
+// ── Casino bet rounding rules ───────────────────────────────────────────────
+// Real casinos require bets to be specific multiples so payouts come out even.
+// Place 6/8 → multiples of 6 (pays 7:6). Place 5/9 → multiples of 5 (pays 7:5).
+// Place 4/10 → multiples of 5 (pays 9:5). Odds on 5/9 → multiples of 2 (pays 3:2).
+// Odds on 6/8 → multiples of 5 (pays 6:5). Odds on 4/10 → any amount (pays 2:1).
+function snapBetAmount(type, rawTotal, pt) {
+  const snapUp = (n, mult) => Math.ceil(n / mult) * mult;
+  if (type === 'place') {
+    if (pt === 6 || pt === 8) return snapUp(rawTotal, 6);
+    return snapUp(rawTotal, 5); // 4, 5, 9, 10
+  }
+  if (type === 'odds') {
+    if (pt === 6 || pt === 8) return snapUp(rawTotal, 5);
+    if (pt === 5 || pt === 9) return snapUp(rawTotal, 2);
+    return rawTotal; // 4 or 10: 2:1 pays cleanly on any amount
+  }
+  return rawTotal;
+}
+
+function roundingMessage(type, pt, original, snapped) {
+  if (snapped === original) return null;
+  const rules = {
+    place: { 6:'multiples of $6 (for 7:6 payout)', 8:'multiples of $6 (for 7:6 payout)', 5:'multiples of $5 (for 7:5 payout)', 9:'multiples of $5 (for 7:5 payout)', 4:'multiples of $5 (for 9:5 payout)', 10:'multiples of $5 (for 9:5 payout)' },
+    odds:  { 6:'multiples of $5 (for 6:5 payout)', 8:'multiples of $5 (for 6:5 payout)', 5:'even dollars (for 3:2 payout)', 9:'even dollars (for 3:2 payout)' }
+  };
+  const rule = rules[type]?.[pt] || '';
+  return ['🎰', 'Bet Rounded Up to $' + snapped,
+    `Casinos require Place ${pt} in ${rule}. Your $${original} was bumped to $${snapped} so the payout comes out even — no change given at the table.`];
+}
+
+// ── Bet toggle ─────────────────────────────────────────────────────────────
+function toggleBet(name) {
+  const el = document.getElementById('bet-' + name);
+  if (el.classList.contains('disabled')) { showTip('⛔', 'Not Available', 'This bet is only available ' + (name === 'come' || name === 'dontcome' ? 'after the point is set.' : 'during the come-out roll.')); return; }
+  if (bankroll < selectedChip && bets[name] === 0) { showTip('💸', 'Not Enough Chips', 'Your bankroll is too low for this chip size.'); return; }
+
+  const prevTotal = bets[name];
+  let rawTotal = prevTotal + selectedChip;
+
+  // Apply rounding for Odds bet
+  let finalTotal = rawTotal;
+  if (name === 'odds') {
+    finalTotal = snapBetAmount('odds', rawTotal, point);
+  }
+
+  const cost = finalTotal - prevTotal;
+  if (bankroll < cost) { showTip('💸', 'Not Enough Chips', `Need $${cost} to cover this bet (rounded to $${finalTotal}).`); return; }
+
+  bets[name] = finalTotal;
+  bankroll -= cost;
+  stats.wagered += cost;
+  if (prevTotal === 0) el.classList.add('active');
+
+  // Show rounding notice if amount changed
+  if (name === 'odds') {
+    const msg = roundingMessage('odds', point, rawTotal, finalTotal);
+    if (msg) { showTip(msg[0], msg[1], msg[2]); }
+    else { showBetTip(name); }
+  } else {
+    showBetTip(name);
+  }
+
+  document.getElementById('amt-' + name).textContent = bets[name] > 0 ? '$' + bets[name] : '';
+  updateDisplay();
+}
+
+function togglePlace(num) {
+  const el = document.getElementById('place-' + num);
+  if (el.classList.contains('disabled')) { showTip('⛔', 'Not Available', 'Place bets are only available after the point is set.'); return; }
+
+  const prevTotal = bets.place[num];
+  const rawTotal  = prevTotal + selectedChip;
+  const finalTotal = snapBetAmount('place', rawTotal, num);
+  const cost = finalTotal - prevTotal;
+
+  if (bankroll < cost) { showTip('💸', 'Not Enough Chips', `Need $${cost} to cover this bet (rounded to $${finalTotal}).`); return; }
+
+  bets.place[num] = finalTotal;
+  bankroll -= cost;
+  stats.wagered += cost;
+  if (prevTotal === 0) el.classList.add('active');
+
+  const msg = roundingMessage('place', num, rawTotal, finalTotal);
+  if (msg) showTip(msg[0], msg[1], msg[2]);
+
+  updateDisplay();
+}
+
+function clearAllBets() {
+  // Return bets to bankroll
+  bankroll += bets.pass + bets.dontpass + bets.come + bets.dontcome +
+              bets.field + bets.anycraps + bets.any7 + bets.odds;
+  Object.values(bets.place).forEach(v => bankroll += v);
+  bets = { pass:0, dontpass:0, come:0, dontcome:0, field:0, anycraps:0, any7:0, odds:0, place:{4:0,5:0,6:0,8:0,9:0,10:0} };
+  document.querySelectorAll('.bet-cell').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.place-btn').forEach(c => c.classList.remove('active'));
+  ['pass','dontpass','come','dontcome','field','anycraps','any7','odds'].forEach(n => {
+    document.getElementById('amt-' + n).textContent = '';
+  });
+  updateDisplay();
+}
+
+// ── Dice rolling ────────────────────────────────────────────────────────────
+const DIE_DOTS = {
+  1: [false,false,false, false,true,false, false,false,false],
+  2: [true,false,false,  false,false,false, false,false,true],
+  3: [true,false,false,  false,true,false,  false,false,true],
+  4: [true,false,true,   false,false,false,  true,false,true],
+  5: [true,false,true,   false,true,false,   true,false,true],
+  6: [true,false,true,   true,false,true,    true,false,true],
+};
+
+function renderDie(id, val) {
+  const die = document.getElementById(id);
+  const dots = DIE_DOTS[val];
+  die.querySelectorAll('.dot').forEach((d,i) => {
+    d.classList.toggle('off', !dots[i]);
+  });
+}
+
+function roll() {
+  if (rolling) return;
+  const hasBets = bets.pass || bets.dontpass || bets.come || bets.dontcome ||
+                  bets.field || bets.anycraps || bets.any7 || bets.odds ||
+                  Object.values(bets.place).some(v => v > 0);
+  if (!hasBets) { showTip('🎲', 'Place a Bet First!', 'Select a chip size and click a betting area before rolling.'); return; }
+
+  rolling = true;
+  document.getElementById('roll-btn').disabled = true;
+  const d1 = Math.ceil(Math.random()*6), d2 = Math.ceil(Math.random()*6);
+  const total = d1 + d2;
+
+  // Animate
+  document.getElementById('die1').classList.add('rolling');
+  document.getElementById('die2').classList.add('rolling');
+  setTimeout(() => {
+    document.getElementById('die1').classList.remove('rolling');
+    document.getElementById('die2').classList.remove('rolling');
+    renderDie('die1', d1);
+    renderDie('die2', d2);
+    document.getElementById('dice-total').textContent = total;
+    resolveRoll(total);
+    updateProbStrip(total);
+    updateHeatmap(total);
+    rolling = false;
+    document.getElementById('roll-btn').disabled = false;
+  }, 520);
+}
+
+// ── Resolve roll ────────────────────────────────────────────────────────────
+function resolveRoll(total) {
+  stats.rolls++;
+  let netThisRoll = 0;
+  let messages = [];
+  let resultClass = '';
+
+  if (point === null) {
+    // ── COME-OUT PHASE ──
+    if (total === 7 || total === 11) {
+      // Pass wins, Don't Pass loses
+      if (bets.pass)     { bankroll += bets.pass * 2; netThisRoll += bets.pass; stats.won += bets.pass; messages.push('Pass Line wins!'); bets.pass = 0; }
+      if (bets.dontpass) { netThisRoll -= bets.dontpass; stats.lost += bets.dontpass; messages.push("Don't Pass loses."); bets.dontpass = 0; }
+      resultClass = 'win';
+      messages.unshift(total === 7 ? '🎉 Natural 7!' : '🎉 Yo-leven!');
+      showTip('🎉', total === 7 ? 'Natural 7!' : 'Yo-leven 11!', 'Pass Line wins on 7 or 11 during come-out. Nice roll!');
+    } else if (total === 2 || total === 3 || total === 12) {
+      // Craps — Pass loses, Don't Pass wins (12 is push)
+      if (bets.pass)     { netThisRoll -= bets.pass; stats.lost += bets.pass; messages.push('Pass Line loses.'); bets.pass = 0; }
+      if (bets.dontpass) {
+        if (total === 12) { bankroll += bets.dontpass; messages.push("Don't Pass pushes (12)."); }
+        else { bankroll += bets.dontpass * 2; netThisRoll += bets.dontpass; stats.won += bets.dontpass; messages.push("Don't Pass wins!"); }
+        bets.dontpass = 0;
+      }
+      resultClass = 'lose';
+      messages.unshift('💀 Craps ' + total + '!');
+      showTip('💀', 'Craps!', total === 12 ? "Rolled 12 (Boxcars) — Don't Pass pushes, Pass Line loses." : "Craps " + total + " — Pass Line loses on 2, 3, or 12 during come-out.");
+    } else {
+      // Point established
+      point = total;
+      messages.push('Point set to ' + total);
+      resultClass = 'point-set';
+      showTip('📍', 'Point is ' + total + '!', 'Now roll the ' + total + ' again before a 7. Take the Odds Bet (0% edge!) and consider placing 6 & 8.');
+    }
+  } else {
+    // ── POINT PHASE ──
+    if (total === point) {
+      // Pass wins, Don't Pass loses, Place on point wins
+      if (bets.pass)  { bankroll += bets.pass * 2; netThisRoll += bets.pass; stats.won += bets.pass; messages.push('Pass Line wins!'); bets.pass = 0; }
+      if (bets.odds)  { const pay = oddsPayment(point, bets.odds); bankroll += bets.odds + pay; netThisRoll += pay; stats.won += pay; messages.push('Odds pays ' + pay + '!'); bets.odds = 0; }
+      if (bets.dontpass) { netThisRoll -= bets.dontpass; stats.lost += bets.dontpass; messages.push("Don't Pass loses."); bets.dontpass = 0; }
+      if (bets.place[total]) { const pay = placePayment(total, bets.place[total]); bankroll += bets.place[total] + pay; netThisRoll += pay; stats.won += pay; messages.push('Place ' + total + ' wins ' + pay + '!'); bets.place[total] = 0; document.getElementById('place-'+total).classList.remove('active'); }
+      messages.unshift('🎉 Point ' + total + ' made!');
+      resultClass = 'win';
+      point = null;
+      showTip('🏆', 'Point Made!', 'You rolled the ' + total + ' and won! New come-out phase begins.');
+    } else if (total === 7) {
+      // Seven out — Pass/Odds/Place lose, Don't Pass wins
+      if (bets.pass)  { netThisRoll -= bets.pass; stats.lost += bets.pass; bets.pass = 0; }
+      if (bets.odds)  { netThisRoll -= bets.odds; stats.lost += bets.odds; bets.odds = 0; }
+      if (bets.dontpass) { bankroll += bets.dontpass * 2; netThisRoll += bets.dontpass; stats.won += bets.dontpass; messages.push("Don't Pass wins!"); bets.dontpass = 0; }
+      if (bets.dontcome) { bankroll += bets.dontcome * 2; netThisRoll += bets.dontcome; stats.won += bets.dontcome; bets.dontcome = 0; }
+      Object.keys(bets.place).forEach(n => {
+        if (bets.place[n]) { netThisRoll -= bets.place[n]; stats.lost += bets.place[n]; bets.place[n] = 0; document.getElementById('place-'+n).classList.remove('active'); }
+      });
+      if (bets.come) { netThisRoll -= bets.come; stats.lost += bets.come; bets.come = 0; }
+      messages.unshift('💀 Seven Out!');
+      resultClass = 'lose';
+      point = null;
+      showTip('💀', 'Seven Out!', 'A 7 after the point is set clears all Pass Line, Odds, and Place bets. New come-out phase begins.');
+    } else {
+      messages.push('No decision on main bets — keep rolling');
+    }
+    // Place bets win on their number (already handled above for point number)
+    if (total !== point && total !== 7) {
+      if (bets.place[total]) {
+        const pay = placePayment(total, bets.place[total]);
+        bankroll += bets.place[total] + pay;
+        netThisRoll += pay; stats.won += pay;
+        messages.push('Place ' + total + ' wins $' + pay + '!');
+        bets.place[total] = 0;
+        document.getElementById('place-'+total).classList.remove('active');
+        resultClass = resultClass || 'win';
+      }
+    }
+  }
+
+  // ── One-roll bets (resolve every roll) ──
+  if (bets.field) {
+    const fieldWins = [2,3,4,9,10,11,12];
+    if (fieldWins.includes(total)) {
+      let pay = bets.field;
+      if (total === 2 || total === 12) pay = bets.field * 2;
+      bankroll += bets.field + pay; netThisRoll += pay; stats.won += pay;
+      messages.push('Field wins $' + pay + '!');
+    } else {
+      netThisRoll -= bets.field; stats.lost += bets.field;
+      messages.push('Field loses.');
+    }
+    bets.field = 0; document.getElementById('bet-field').classList.remove('active');
+    document.getElementById('amt-field').textContent = '';
+  }
+  if (bets.anycraps) {
+    if ([2,3,12].includes(total)) { bankroll += bets.anycraps * 8; netThisRoll += bets.anycraps*7; stats.won += bets.anycraps*7; messages.push('Any Craps wins!'); }
+    else { netThisRoll -= bets.anycraps; stats.lost += bets.anycraps; messages.push('Any Craps loses.'); }
+    bets.anycraps = 0; document.getElementById('bet-anycraps').classList.remove('active');
+    document.getElementById('amt-anycraps').textContent = '';
+  }
+  if (bets.any7) {
+    if (total === 7) { bankroll += bets.any7 * 5; netThisRoll += bets.any7*4; stats.won += bets.any7*4; messages.push('Any 7 wins!'); }
+    else { netThisRoll -= bets.any7; stats.lost += bets.any7; messages.push('Any 7 loses.'); }
+    bets.any7 = 0; document.getElementById('bet-any7').classList.remove('active');
+    document.getElementById('amt-any7').textContent = '';
+  }
+  // Come bet
+  if (bets.come && point !== null) {
+    if (total === 7 || total === 11) {
+      bankroll += bets.come * 2; netThisRoll += bets.come; stats.won += bets.come;
+      messages.push('Come wins!'); bets.come = 0;
+      document.getElementById('bet-come').classList.remove('active');
+      document.getElementById('amt-come').textContent = '';
+    } else if ([2,3,12].includes(total)) {
+      netThisRoll -= bets.come; stats.lost += bets.come;
+      messages.push('Come loses.'); bets.come = 0;
+      document.getElementById('bet-come').classList.remove('active');
+      document.getElementById('amt-come').textContent = '';
+    }
+    // else: come point set — bet stays active
+  }
+
+  // net is already tracked per-bet above
+
+  // Update bet display amounts
+  ['pass','dontpass','come','dontcome','field','anycraps','any7','odds'].forEach(n => {
+    const el = document.getElementById('amt-' + n);
+    if (el) el.textContent = bets[n] > 0 ? '$' + bets[n] : '';
+    if (!bets[n]) document.getElementById('bet-' + n)?.classList.remove('active');
+  });
+
+  addLog(total, messages.join(' · '), netThisRoll, resultClass);
+  updateDisplay(resultClass, messages[0]);
+}
+
+function oddsPayment(pt, amt) {
+  const rates = {4:2, 10:2, 5:1.5, 9:1.5, 6:1.2, 8:1.2};
+  return Math.floor(amt * (rates[pt] || 1));
+}
+function placePayment(num, amt) {
+  const rates = {4:9/5, 5:7/5, 6:7/6, 8:7/6, 9:7/5, 10:9/5};
+  return Math.floor(amt * (rates[num] || 1));
+}
+
+// ── Display updates ────────────────────────────────────────────────────────
+function updateDisplay(resultClass, mainMsg) {
+  // Bankroll
+  document.getElementById('bankroll').textContent = '$' + bankroll;
+
+  // Phase
+  const phaseEl   = document.getElementById('phase-text');
+  const pointEl   = document.getElementById('point-text');
+  const puckEl    = document.getElementById('puck');
+  const resultEl  = document.getElementById('dice-result');
+
+  if (point === null) {
+    phaseEl.textContent = 'Come-Out Roll';
+    pointEl.textContent = 'None';
+    puckEl.textContent  = 'OFF';
+    puckEl.className    = 'point-puck off';
+    // Disable point-only bets
+    ['come','dontcome','odds'].forEach(n => document.getElementById('bet-'+n).classList.add('disabled'));
+    [4,5,6,8,9,10].forEach(n => document.getElementById('place-'+n).classList.add('disabled'));
+  } else {
+    phaseEl.textContent = 'Point Phase';
+    pointEl.textContent = point;
+    puckEl.textContent  = point;
+    puckEl.className    = 'point-puck on';
+    // Enable point-only bets
+    if (bets.pass > 0) document.getElementById('bet-odds').classList.remove('disabled');
+    ['come','dontcome'].forEach(n => document.getElementById('bet-'+n).classList.remove('disabled'));
+    [4,5,6,8,9,10].forEach(n => {
+      const el = document.getElementById('place-'+n);
+      el.classList.remove('disabled');
+      el.classList.toggle('is-point', n === point);
+    });
+  }
+
+  if (resultEl && mainMsg) {
+    resultEl.textContent  = mainMsg || '';
+    resultEl.className    = 'dice-result ' + (resultClass || '');
+  }
+
+  // Stats
+  document.getElementById('stat-rolls').textContent   = stats.rolls;
+  document.getElementById('stat-won').textContent     = '$' + stats.won;
+  document.getElementById('stat-lost').textContent    = '$' + stats.lost;
+  document.getElementById('stat-wagered').textContent = '$' + stats.wagered;
+  const net = stats.won - stats.lost;
+  const netEl = document.getElementById('stat-net');
+  netEl.textContent = (net >= 0 ? '+' : '') + '$' + net;
+  netEl.style.color = net >= 0 ? '#4ade80' : '#f87171';
+
+  updateRecommendation();
+  updateProbStrip();
+}
+
+// ── Log ────────────────────────────────────────────────────────────────────
+function addLog(roll, msg, net, cls) {
+  const log = document.getElementById('roll-log');
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  div.innerHTML = `<span class="log-roll">${roll}</span>
+    <span class="log-msg ${cls}">${msg}</span>
+    <span class="log-net ${net>=0?'pos':'neg'}">${net>=0?'+':''}$${net}</span>`;
+  log.prepend(div);
+  if (log.children.length > 30) log.removeChild(log.lastChild);
+}
+
+// ── Tips ───────────────────────────────────────────────────────────────────
+function showTip(icon, title, text) {
+  document.getElementById('tip-box').innerHTML = `
+    <div class="tip-icon">${icon}</div>
+    <div class="tip-title">${title}</div>
+    <div class="tip-text">${text}</div>`;
+}
+
+function showBetTip(name) {
+  const tips = {
+    pass:     ['✅', 'Good Choice!',       'Pass Line is the best beginner bet. 1.41% house edge. Win on 7/11 come-out, lose on 2/3/12. Once point is set, win by hitting the point before 7.'],
+    dontpass: ['✅', "Don't Pass",          "Slightly better odds than Pass (1.36%). You're betting against the shooter. Win on 2/3, push on 12, lose on 7/11 come-out. Unpopular at crowded tables but mathematically sound."],
+    odds:     ['🏆', 'ZERO House Edge!',   'This is the smartest bet in the casino. 0% house edge — true mathematical odds. Always take the maximum allowed. Pays 2:1 on 4/10, 3:2 on 5/9, 6:5 on 6/8.'],
+    field:    ['⚠️',  'Field Bet',          'Pays on 2,3,4,9,10,11,12 but loses on 5,6,7,8. Sounds good but 5.56% house edge. Fun for one roll but avoid repeating it.'],
+    anycraps: ['🚨', 'Dangerous Bet',      '11.1% house edge. You will lose this frequently. Only place it if you want to hedge a Pass Line bet on come-out. Even then it barely helps.'],
+    any7:     ['🚨', 'Worst Bet on Table', '16.7% house edge — the single worst bet in craps. The house takes your money fast. Never bet this seriously.'],
+    come:     ['✅', 'Come Bet',           'Like a second Pass Line once the point is set. Next roll becomes your personal come-out. Win on 7/11, lose on 2/3/12, else sets a come point. Good for action.'],
+    dontcome: ['✅', "Don't Come",          'Opposite of Come. Good odds (1.36%) but you need patience.'],
+  };
+  const t = tips[name];
+  if (t) showTip(t[0], t[1], t[2]);
+}
+
+// ── Dice probability strip ─────────────────────────────────────────────────
+const DICE_MATH = {
+  2:  { ways: 1,  combos: ['1+1'] },
+  3:  { ways: 2,  combos: ['1+2','2+1'] },
+  4:  { ways: 3,  combos: ['1+3','2+2','3+1'] },
+  5:  { ways: 4,  combos: ['1+4','2+3','3+2','4+1'] },
+  6:  { ways: 5,  combos: ['1+5','2+4','3+3','4+2','5+1'] },
+  7:  { ways: 6,  combos: ['1+6','2+5','3+4','4+3','5+2','6+1'] },
+  8:  { ways: 5,  combos: ['2+6','3+5','4+4','5+3','6+2'] },
+  9:  { ways: 4,  combos: ['3+6','4+5','5+4','6+3'] },
+  10: { ways: 3,  combos: ['4+6','5+5','6+4'] },
+  11: { ways: 2,  combos: ['5+6','6+5'] },
+  12: { ways: 1,  combos: ['6+6'] },
+};
+
+let lastRolled = null;
+
+function buildProbGrid() {
+  const grid = document.getElementById('prob-grid');
+  grid.innerHTML = '';
+  for (let n = 2; n <= 12; n++) {
+    const d = DICE_MATH[n];
+    const pct = ((d.ways / 36) * 100).toFixed(1);
+    const barW = Math.round((d.ways / 6) * 100);
+    const cell = document.createElement('div');
+    cell.className = 'prob-cell';
+    cell.id = 'prob-' + n;
+    cell.innerHTML = `
+      <div class="prob-combos">${d.combos.join('<br>')} <br><b>${d.ways}/36 = ${pct}%</b></div>
+      <div class="prob-num">${n}</div>
+      <div class="prob-ways">${d.ways} way${d.ways>1?'s':''}</div>
+      <div class="prob-pct">${pct}%</div>
+      <div class="prob-bar"><div class="prob-bar-fill" style="width:${barW}%"></div></div>`;
+    grid.appendChild(cell);
+  }
+}
+
+function updateProbStrip(rolledNum) {
+  if (rolledNum !== undefined) lastRolled = rolledNum;
+
+  for (let n = 2; n <= 12; n++) {
+    const cell = document.getElementById('prob-' + n);
+    if (!cell) continue;
+    // Reset classes
+    cell.className = 'prob-cell';
+
+    if (point === null) {
+      // Come-out: green=naturals, red=craps, grey=point-setters
+      if (n === 7 || n === 11) cell.classList.add('is-natural');
+      else if (n === 2 || n === 3 || n === 12) cell.classList.add('is-craps');
+    } else {
+      // Point phase: orange=point, red=7, rest neutral
+      if (n === 7)     cell.classList.add('is-seven');
+      else if (n === point) cell.classList.add('is-point');
+    }
+
+    if (n === lastRolled) cell.classList.add('just-rolled');
+  }
+
+  // Point-vs-7 context bar
+  const ctx = document.getElementById('point-context');
+  if (point !== null) {
+    const ptWays   = DICE_MATH[point].ways;
+    const sevWays  = 6;
+    const total    = ptWays + sevWays;
+    const ptPct    = ((ptWays / total) * 100).toFixed(0);
+    const sevPct   = ((sevWays / total) * 100).toFixed(0);
+    const ptOdds   = `${sevWays}:${ptWays}`;  // odds against making the point
+
+    document.getElementById('ctx-point-label').textContent = `${point}: ${ptWays} ways (${ptPct}%)`;
+    document.getElementById('ctx-seven-label').textContent = `7: ${sevWays} ways (${sevPct}%)`;
+    document.getElementById('ctx-point-bar').style.width = ((ptWays/total)*100) + '%';
+    document.getElementById('ctx-seven-bar').style.width = ((sevWays/total)*100) + '%';
+    ctx.title = `True odds against making the point: ${ptOdds}`;
+    ctx.style.display = 'flex';
+  } else {
+    ctx.style.display = 'none';
+  }
+}
+
+buildProbGrid();
+
+// ── Roll heatmap ────────────────────────────────────────────────────────────
+const ROLL_WAYS = {2:1,3:2,4:3,5:4,6:5,7:6,8:5,9:4,10:3,11:2,12:1};
+let rollCounts = {2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0};
+
+function heatColor(ratio) {
+  // ratio = actual / expected. 1.0 = exactly on pace
+  // <0.4 deep blue → 1.0 slate → >1.8 deep red
+  if (ratio === null) return '#cbd5e1'; // no data yet
+  const r = Math.max(0, Math.min(ratio, 2.5));
+  if (r < 1.0) {
+    // blue to slate: ratio 0→1
+    const t = r;
+    const R = Math.round(59  + (148-59)*t);
+    const G = Math.round(130 + (163-130)*t);
+    const B = Math.round(246 + (163-246)*t);
+    return `rgb(${R},${G},${B})`;
+  } else {
+    // slate to red: ratio 1→2.5
+    const t = Math.min((r - 1) / 1.5, 1);
+    const R = Math.round(148 + (220-148)*t);
+    const G = Math.round(163 + (38-163)*t);
+    const B = Math.round(163 + (38-163)*t);
+    return `rgb(${R},${G},${B})`;
+  }
+}
+
+function buildHeatmap() {
+  const grid = document.getElementById('heatmap-grid');
+  grid.innerHTML = '';
+  for (let n = 2; n <= 12; n++) {
+    const cell = document.createElement('div');
+    cell.className = 'hm-cell';
+    cell.id = 'hm-' + n;
+    cell.style.background = '#cbd5e1';
+    cell.innerHTML = `<div class="hm-num">${n}</div><div class="hm-cnt" id="hmc-${n}">0</div><div class="hm-exp" id="hme-${n}">exp 0</div>`;
+    grid.appendChild(cell);
+  }
+}
+
+function updateHeatmap(newRoll) {
+  if (newRoll) rollCounts[newRoll]++;
+  const total = stats.rolls;
+
+  let hottest = null, hotRatio = 0;
+  let coldest = null, coldRatio = Infinity;
+
+  for (let n = 2; n <= 12; n++) {
+    const expected = (ROLL_WAYS[n] / 36) * total;
+    const actual   = rollCounts[n];
+    const ratio    = total === 0 ? null : (expected === 0 ? null : actual / expected);
+
+    document.getElementById('hm-' + n).style.background = heatColor(ratio);
+    document.getElementById('hmc-' + n).textContent = actual + 'x';
+    document.getElementById('hme-' + n).textContent  = 'exp ' + (expected < 1 ? expected.toFixed(1) : Math.round(expected));
+
+    if (ratio !== null && total >= 5) {
+      if (ratio > hotRatio) { hotRatio = ratio; hottest = n; }
+      if (ratio < coldRatio) { coldRatio = ratio; coldest = n; }
+    }
+  }
+
+  // Summary tags
+  const summary = document.getElementById('hm-summary');
+  summary.innerHTML = '';
+  if (total < 5) {
+    document.getElementById('hm-note').style.display = 'block';
+    return;
+  }
+  document.getElementById('hm-note').style.display = 'none';
+
+  if (hottest) {
+    const h = document.createElement('span');
+    h.className = 'hm-tag hot';
+    h.textContent = `🔥 ${hottest} running hot (${((hotRatio-1)*100).toFixed(0)}% above expected)`;
+    summary.appendChild(h);
+  }
+  if (coldest && coldest !== hottest) {
+    const c = document.createElement('span');
+    c.className = 'hm-tag cold';
+    c.textContent = `🧊 ${coldest} running cold (${((1-coldRatio)*100).toFixed(0)}% below expected)`;
+    summary.appendChild(c);
+  }
+  // "7 avoided" note if 7 is cold — good for pass line players
+  const sevenExp = (6/36) * total;
+  const sevenRatio = rollCounts[7] / sevenExp;
+  if (sevenRatio < 0.7 && total >= 10) {
+    const d = document.createElement('span');
+    d.className = 'hm-tag due';
+    d.textContent = `⚠️ 7 overdue — stay alert`;
+    summary.appendChild(d);
+  }
+}
+
+buildHeatmap();
+
+// ── Recommendation engine ──────────────────────────────────────────────────
+function updateRecommendation() {
+  const bar   = document.getElementById('rec-bar');
+  const icon  = document.getElementById('rec-icon');
+  const label = document.getElementById('rec-label');
+  const main  = document.getElementById('rec-main');
+  const sub   = document.getElementById('rec-sub');
+
+  const hasPass     = bets.pass > 0;
+  const hasDontPass = bets.dontpass > 0;
+  const hasOdds     = bets.odds > 0;
+  const hasAny7     = bets.any7 > 0;
+  const hasAnyCraps = bets.anycraps > 0;
+  const hasField    = bets.field > 0;
+  const placedNums  = [4,5,6,8,9,10].filter(n => bets.place[n] > 0);
+  const has6        = bets.place[6] > 0;
+  const has8        = bets.place[8] > 0;
+
+  let type = 'go', ico = '🎯', lbl = 'Coach', msg = '', hint = '';
+
+  // ── DANGER overrides (show first no matter what) ──
+  if (hasAny7) {
+    type = 'danger'; ico = '🚨'; lbl = 'Remove This Bet!';
+    msg = 'Any Seven has a 16.7% house edge — worst bet on the table';
+    hint = 'Click Any Seven to remove it. The house wins 5 out of every 6 rolls. You will burn through your bankroll fast.';
+  } else if (hasAnyCraps && point !== null) {
+    type = 'warn'; ico = '⚠️'; lbl = 'Weak Bet in Point Phase';
+    msg = 'Any Craps doesn\'t help you in point phase';
+    hint = 'Any Craps only wins on 2, 3, or 12 — those don\'t affect your point. Consider removing it and taking the Odds Bet instead (0% edge).';
+  }
+
+  // ── COME-OUT phase ──
+  else if (point === null) {
+    if (!hasPass && !hasDontPass) {
+      type = 'go'; ico = '🎯'; lbl = 'Step 1 — Place Your Bet';
+      msg = 'Start with the Pass Line — best bet for beginners';
+      hint = 'Pick a chip ($10 or $25) then click PASS LINE at the bottom. It wins on 7 or 11, loses on 2/3/12, and if any other number rolls that becomes your "point."';
+    } else if (hasPass) {
+      type = 'go'; ico = '✅'; lbl = 'Ready to Roll';
+      msg = 'Good! You\'re on the Pass Line — now roll';
+      hint = 'Roll the dice. 7 or 11 = instant win 🎉 · 2, 3, 12 = lose 💀 · Any other number sets the Point and the real game begins.';
+    } else if (hasDontPass) {
+      type = 'info'; ico = '✅'; lbl = 'Ready to Roll';
+      msg = 'Don\'t Pass bet placed — you\'re betting against the shooter';
+      hint = 'You win on 2 or 3, push (tie) on 12, and lose on 7 or 11. If a point is set you need a 7 before the point to win. Slightly better odds than Pass Line.';
+    }
+  }
+
+  // ── POINT phase ──
+  else {
+    if (hasPass && !hasOdds) {
+      type = 'go'; ico = '🏆'; lbl = 'Free Money — Take the Odds Bet!';
+      msg = 'Back your Pass Line with an Odds Bet — 0% house edge';
+      hint = `The Odds Bet is the only bet in any casino with zero house edge. Click ODDS BET and max it out. Point is ${point} — odds pay ${point===4||point===10?'2:1':point===5||point===9?'3:2':'6:5'}.`;
+    } else if (hasPass && hasOdds && !has6 && !has8 && point !== 6 && point !== 8) {
+      type = 'go'; ico = '⭐'; lbl = 'Next Move — Place the 6 and 8';
+      msg = 'Place the 6 and 8 for extra action at just 1.52% edge';
+      hint = `Your point is ${point}. The 6 and 8 are the most common non-7 rolls (5 ways each). Placing both gives you two extra chances to win on every roll.`;
+    } else if (hasPass && hasOdds && !has6 && point !== 6) {
+      type = 'info'; ico = '⭐'; lbl = 'Consider Placing the 6';
+      msg = 'Place the 6 — 1.52% edge, rolls 5 ways out of 36';
+      hint = `Your point is ${point} so 6 is still open. It pays 7:6 and is one of the best bets on the table after your Odds Bet.`;
+    } else if (hasPass && hasOdds && !has8 && point !== 8) {
+      type = 'info'; ico = '⭐'; lbl = 'Consider Placing the 8';
+      msg = 'Place the 8 — 1.52% edge, rolls 5 ways out of 36';
+      hint = `Your point is ${point} so 8 is still open. Pays 7:6. One of the best value bets on the table.`;
+    } else if (hasPass && hasOdds && (has6 || has8)) {
+      type = 'go'; ico = '💪'; lbl = 'Solid Setup!';
+      msg = `Keep rolling toward your point (${point})`;
+      hint = `You have Pass Line + Odds + Place ${has6&&has8?'6 & 8':has6?'6':'8'} — that's the smart strategy. Now it's just about the dice. 7 kills you, ${point} wins the round.`;
+    } else if (hasDontPass && !hasOdds) {
+      type = 'info'; ico = '🔄'; lbl = 'Lay Odds Available';
+      msg = 'You can lay odds behind Don\'t Pass (also 0% edge)';
+      hint = `Laying odds on Don't Pass is also zero house edge. You're hoping for a 7 before the point (${point}). Click Odds Bet to add it.`;
+    } else if (!hasPass && !hasDontPass && placedNums.length > 0) {
+      type = 'warn'; ico = '⚠️'; lbl = 'Missing Foundation Bet';
+      msg = 'You have Place bets but no Pass Line — consider adding it';
+      hint = 'Pass Line is your anchor bet. Place bets are great supplements but you want the Pass Line (+ Odds) as your core position.';
+    } else {
+      type = 'go'; ico = '🎲'; lbl = 'Keep Rolling';
+      msg = `Point is ${point} — roll until you hit it or a 7`;
+      hint = `You need ${point} before a 7. There are ${point===4||point===10?3:point===5||point===9?4:5} ways to roll ${point} and 6 ways to roll a 7.`;
+    }
+  }
+
+  bar.className  = 'rec-bar rec-' + type;
+  icon.textContent  = ico;
+  label.textContent = lbl;
+  main.textContent  = msg;
+  sub.textContent   = hint;
+}
+
+// ── Reset ──────────────────────────────────────────────────────────────────
+function resetGame() {
+  bankroll = 500; point = null; comePoint = null;
+  bets = { pass:0, dontpass:0, come:0, dontcome:0, field:0, anycraps:0, any7:0, odds:0, place:{4:0,5:0,6:0,8:0,9:0,10:0} };
+  stats = { rolls:0, won:0, lost:0, wagered:0 };
+  document.querySelectorAll('.bet-cell').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.place-btn').forEach(c => c.classList.remove('active'));
+  ['pass','dontpass','come','dontcome','field','anycraps','any7','odds'].forEach(n => {
+    document.getElementById('amt-' + n).textContent = '';
+  });
+  document.getElementById('dice-total').textContent = '—';
+  document.getElementById('dice-result').textContent = 'Place a bet then roll';
+  document.getElementById('dice-result').className = 'dice-result';
+  document.getElementById('roll-log').innerHTML = '';
+  [1,2].forEach(i => { document.getElementById('die'+i).querySelectorAll('.dot').forEach(d => d.classList.add('off')); });
+  lastRolled = null;
+  rollCounts = {2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0};
+  updateDisplay();
+  updateProbStrip();
+  updateHeatmap();
+  showTip('🎓', 'Game Reset!', 'Back to $500. Start with a Pass Line bet and roll!');
+}
+
+updateDisplay();
+</script>
+</body>
+</html>

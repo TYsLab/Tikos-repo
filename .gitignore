@@ -1,0 +1,6 @@
+.DS_Store
+.env
+premarket.db
+bracket_results.json
+__pycache__/
+*.pyc

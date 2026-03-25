@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>March Madness Bracket Predictor</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f13; color: #e2e8f0; min-height: 100vh; }
+
+/* Header */
+.header { padding: 1.5rem 2rem; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+.header h1 { font-size: 1.4rem; font-weight: 700; }
+.header p { font-size: 0.82rem; color: #64748b; margin-top: 0.2rem; }
+.header-btns { display: flex; gap: 0.6rem; }
+button { padding: 0.45rem 1rem; border-radius: 7px; border: none; cursor: pointer; font-size: 0.82rem; font-weight: 600; transition: opacity .15s; }
+button:hover { opacity: .8; }
+button:disabled { opacity: .35; cursor: not-allowed; }
+.btn-run { background: #3b82f6; color: #fff; }
+.btn-sec { background: #1e293b; color: #cbd5e1; border: 1px solid #334155; }
+.btn-sm { padding: 0.3rem 0.7rem; font-size: 0.75rem; }
+
+/* Status */
+.status { padding: 0.7rem 1rem; margin: 1rem 2rem 0; border-radius: 8px; display: none; font-size: 0.85rem; }
+.s-info    { background:#1e3a5f20; border:1px solid #3b82f6; color:#93c5fd; }
+.s-success { background:#14532d20; border:1px solid #16a34a; color:#86efac; }
+.s-error   { background:#450a0a30; border:1px solid #dc2626; color:#fca5a5; }
+
+/* Tabs */
+.tabs { display: flex; gap: 0; padding: 1rem 2rem 0; border-bottom: 1px solid #1e293b; }
+.tab-btn { padding: 0.55rem 1.2rem; font-size: 0.85rem; font-weight: 600; color: #64748b; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; border-radius: 0; margin-bottom: -1px; transition: color .15s; }
+.tab-btn.active { color: #60a5fa; border-bottom-color: #3b82f6; }
+.tab-btn:hover { color: #cbd5e1; }
+
+/* Tab content */
+.tab-content { display: none; padding: 1.5rem 2rem; }
+.tab-content.active { display: block; }
+
+/* Loading */
+.loading { display: flex; align-items: center; gap: 0.75rem; padding: 3rem; color: #64748b; justify-content: center; }
+.spinner { width: 20px; height: 20px; border: 2px solid #334155; border-top-color: #3b82f6; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty { color: #475569; text-align: center; padding: 3rem; }
+code { background: #1e293b; padding: .15rem .4rem; border-radius: 4px; font-size: .85em; }
+
+/* ── VISUAL BRACKET ── */
+.bracket-wrap { overflow-x: auto; padding-bottom: 1rem; }
+.bracket-layout { display: flex; gap: 0; min-width: 1100px; }
+
+/* Left side (South + East): rounds go left→right */
+/* Right side (West + Midwest): rounds go right→left */
+.bracket-side { display: flex; flex: 1; }
+.bracket-side.left { flex-direction: row; }
+.bracket-side.right { flex-direction: row-reverse; }
+
+.bracket-round { display: flex; flex-direction: column; justify-content: space-around; min-width: 140px; padding: 0 4px; }
+.bracket-round-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: .08em; color: #475569; text-align: center; padding: 4px 0 8px; }
+
+.bracket-center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 160px; padding: 0 8px; gap: 8px; }
+.champ-trophy { font-size: 2rem; text-align: center; }
+.champ-name { font-size: 0.95rem; font-weight: 800; color: #fef3c7; text-align: center; line-height: 1.3; }
+.champ-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: .1em; color: #f59e0b; text-align: center; }
+
+/* Matchup slots */
+.slot-group { display: flex; flex-direction: column; justify-content: center; flex: 1; }
+.matchup-box { margin: 3px 0; position: relative; }
+.matchup-box::after { content: ''; position: absolute; right: -4px; top: 25%; width: 4px; height: 50%; border-top: 1px solid #334155; border-right: 1px solid #334155; border-bottom: 1px solid #334155; }
+.bracket-side.right .matchup-box::after { right: auto; left: -4px; border-left: 1px solid #334155; border-right: none; }
+.team-slot { display: flex; align-items: center; gap: 0.35rem; padding: 4px 6px; border-radius: 4px; cursor: pointer; border: 1px solid transparent; transition: all .15s; min-height: 26px; }
+.team-slot:hover { background: #1e293b; border-color: #334155; }
+.team-slot.winner { background: #1e3a1e; border-color: #16a34a40; }
+.team-slot.my-pick { background: #1e1e3a; border-color: #6366f180; }
+.team-slot.my-pick.winner { background: #1a1e3a; border-color: #6366f1; }
+.team-slot.empty-slot { opacity: .3; cursor: default; }
+.seed-badge { font-size: 0.62rem; color: #64748b; min-width: 14px; text-align: center; }
+.team-label { font-size: 0.72rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px; }
+.team-slot.winner .team-label { color: #86efac; }
+.team-slot.my-pick .team-label { color: #a5b4fc; }
+
+/* Region label */
+.region-tag { font-size: 0.62rem; text-transform: uppercase; letter-spacing: .1em; color: #475569; text-align: center; padding: 4px 0; }
+
+/* ── SUMMARY SECTION ── */
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.summary-card { background: #1a1a24; border: 1px solid #1e293b; border-radius: 10px; padding: 1rem 1.25rem; }
+.summary-card.gold { border-color: #f59e0b50; background: #1e1a10; }
+.summary-card h3 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: .08em; color: #64748b; margin-bottom: 0.5rem; }
+.summary-card .big { font-size: 1.25rem; font-weight: 700; color: #f8fafc; line-height: 1.2; }
+.summary-card .sub { font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem; }
+
+/* Algo selector */
+.algo-row { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.algo-btn { padding: 0.35rem 0.85rem; font-size: 0.8rem; border-radius: 20px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; cursor: pointer; }
+.algo-btn.active { background: #3b82f620; border-color: #3b82f6; color: #93c5fd; }
+
+/* MC Table */
+.mc-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.mc-table th { text-align: left; padding: .4rem .7rem; color: #64748b; font-size: 0.72rem; border-bottom: 1px solid #1e293b; font-weight: 600; }
+.mc-table td { padding: .4rem .7rem; border-bottom: 1px solid #0f172a; }
+.mc-table tr:hover td { background: #1e293b30; }
+.bar { background: #0f172a; border-radius: 3px; height: 6px; width: 100%; overflow: hidden; }
+.bar-fill { background: #3b82f6; height: 100%; border-radius: 3px; }
+
+/* My picks panel */
+.picks-section { background: #1a1a24; border: 1px solid #1e293b; border-radius: 10px; padding: 1.25rem; margin-bottom: 1.5rem; }
+.picks-section h3 { font-size: 0.85rem; font-weight: 700; color: #cbd5e1; margin-bottom: 0.75rem; }
+.picks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.5rem; }
+.pick-item { display: flex; align-items: center; gap: 0.5rem; background: #0f172a; border: 1px solid #1e3a5f50; border-radius: 6px; padding: 0.4rem 0.7rem; }
+.pick-round { font-size: 0.65rem; color: #475569; min-width: 20px; }
+.pick-team { font-size: 0.78rem; color: #a5b4fc; font-weight: 500; }
+.picks-empty { color: #475569; font-size: 0.82rem; }
+
+/* Tooltip */
+.algo-compare { background: #1a1a24; border: 1px solid #1e293b; border-radius: 10px; padding: 1.25rem; margin-top: 1.5rem; }
+.algo-compare h3 { font-size: 0.85rem; font-weight: 700; margin-bottom: 0.75rem; color: #cbd5e1; }
+.compare-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.compare-table th, .compare-table td { padding: .4rem .7rem; text-align: left; border-bottom: 1px solid #1e293b; }
+.compare-table th { color: #64748b; font-size: 0.72rem; }
+.agree { color: #86efac; }
+.disagree { color: #f97316; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>🏀 March Madness Bracket Predictor</h1>
+    <p>Three algorithms · Click teams to make your own picks</p>
+  </div>
+  <div class="header-btns">
+    <button class="btn-sec" onclick="clearMyPicks()">Clear My Picks</button>
+    <button class="btn-run" id="run-btn" onclick="runFresh()">Run Fresh Predictions</button>
+  </div>
+</div>
+
+<div id="status" class="status"></div>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('bracket')">🗓 Full Bracket</button>
+  <button class="tab-btn" onclick="switchTab('summary')">📊 Summary</button>
+  <button class="tab-btn" onclick="switchTab('mypicks')">📌 My Picks</button>
+  <button class="tab-btn" onclick="switchTab('odds')">🎲 Monte Carlo Odds</button>
+</div>
+
+<div id="tab-bracket" class="tab-content active"><div class="loading"><div class="spinner"></div><span>Loading…</span></div></div>
+<div id="tab-summary" class="tab-content"></div>
+<div id="tab-mypicks" class="tab-content"></div>
+<div id="tab-odds" class="tab-content"></div>
+
+<script>
+const API = 'http://localhost:8765';
+let bracketData = null;
+let currentAlgo = 'SeedModel';
+let myPicks = JSON.parse(localStorage.getItem('bracketPicks') || '{}'); // {slotKey: teamName}
+const algoList = ['SeedModel', 'UpsetModel', 'MonteCarlo'];
+const algoLabels = { SeedModel: '🌱 Seed Model', UpsetModel: '💥 Upset Model', MonteCarlo: '🎲 Monte Carlo' };
+const roundLabels = ['R64', 'R32', 'Sweet 16', 'Elite 8', 'Final Four', 'Champ'];
+const regions = ['South', 'East', 'West', 'Midwest'];
+
+function setStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.className = 'status s-' + type;
+  el.style.display = 'block';
+  el.textContent = msg;
+  if (type === 'success') setTimeout(() => el.style.display = 'none', 3000);
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', ['bracket','summary','mypicks','odds'][i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'mypicks') renderMyPicksTab();
+}
+
+async function loadBracket() {
+  try {
+    const r = await fetch(API + '/api/bracket');
+    if (!r.ok) { showEmpty('No predictions yet — click "Run Fresh Predictions"'); return; }
+    const data = await r.json();
+    if (data.error) { showEmpty(data.error); return; }
+    bracketData = data;
+    renderAll();
+  } catch(e) {
+    showEmpty('Local server not running. Start it: python3 local_server.py');
+  }
+}
+
+async function runFresh() {
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true; btn.textContent = 'Running…';
+  setStatus('Running predictions (10,000 Monte Carlo sims)…', 'info');
+  try {
+    const r = await fetch(API + '/api/run-bracket', { method: 'POST' });
+    const data = await r.json();
+    if (data.error) { setStatus('Error: ' + data.error, 'error'); return; }
+    bracketData = data;
+    renderAll();
+    setStatus('Fresh predictions loaded!', 'success');
+  } catch(e) {
+    setStatus('Cannot reach local server. Run: python3 local_server.py', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Run Fresh Predictions';
+  }
+}
+
+function showEmpty(msg) {
+  document.getElementById('tab-bracket').innerHTML = `<p class="empty">${msg}<br><br><code>python3 local_server.py</code></p>`;
+}
+
+function renderAll() {
+  renderBracketTab();
+  renderSummaryTab();
+  renderOddsTab();
+}
+
+/* ─── FULL BRACKET ─── */
+function renderBracketTab() {
+  const d = bracketData;
+  if (!d) return;
+
+  const html = `
+    <div style="padding:1rem 2rem 0.5rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+      <span style="font-size:0.78rem;color:#64748b;margin-right:0.25rem">Algorithm:</span>
+      ${algoList.map(a => `<button class="algo-btn${a===currentAlgo?' active':''}" onclick="setAlgo('${a}')">${algoLabels[a]}</button>`).join('')}
+      <span style="font-size:0.72rem;color:#475569;margin-left:0.5rem">· Click any team to make your pick</span>
+    </div>
+    <div class="bracket-wrap" id="bracket-wrap">
+      ${buildBracketHTML()}
+    </div>`;
+  document.getElementById('tab-bracket').innerHTML = html;
+}
+
+function setAlgo(algo) {
+  currentAlgo = algo;
+  renderBracketTab();
+}
+
+function buildBracketHTML() {
+  const d = bracketData;
+  const rounds = d.rounds[currentAlgo];
+
+  // Build left side: South (top), East (bottom)
+  // Build right side: West (top), Midwest (bottom)
+  const leftRegions = ['South', 'East'];
+  const rightRegions = ['West', 'Midwest'];
+  const numRegionRounds = 4; // R64 through Elite 8
+
+  let html = '<div class="bracket-layout">';
+
+  // LEFT SIDE (rounds go left → right)
+  html += '<div class="bracket-side left">';
+  for (let ri = 0; ri < numRegionRounds; ri++) {
+    html += `<div class="bracket-round">`;
+    html += `<div class="bracket-round-label">${roundLabels[ri]}</div>`;
+    for (const region of leftRegions) {
+      const rnd = (rounds[region] || [])[ri] || [];
+      html += `<div class="region-tag">${region}</div>`;
+      html += renderRoundSlots(rnd, region, ri);
+    }
+    html += '</div>';
+  }
+  html += '</div>'; // left
+
+  // CENTER: Final Four + Championship
+  const ff = rounds['Final Four'] || [];
+  const ch = rounds['Championship'] || [];
+  const champ = ch[1] ? ch[1][0] : null;
+
+  html += '<div class="bracket-center">';
+  // Final four semi: left side winner
+  const ffLeft = (ff[0] || []).slice(0, 2);
+  const ffRight = (ff[0] || []).slice(2, 4);
+  const finalLeft = ff[1] ? ff[1][0] : null;
+  const finalRight = ff[1] ? ff[1][1] : null;
+
+  html += `<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.08em;color:#475569;text-align:center;margin-bottom:4px">Final Four</div>`;
+  // Left semi
+  html += `<div class="matchup-box" style="width:100%">`;
+  ffLeft.forEach((t, i) => html += renderCenterSlot(t, 'ff', i));
+  html += `</div>`;
+
+  html += `<div style="margin:6px 0">`;
+  html += `<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.08em;color:#475569;text-align:center;margin-bottom:4px">Championship</div>`;
+  html += `<div class="matchup-box" style="width:100%">`;
+  if (finalLeft) html += renderCenterSlot(finalLeft, 'championship', 0);
+  if (finalRight) html += renderCenterSlot(finalRight, 'championship', 1);
+  html += `</div></div>`;
+
+  // Champion
+  if (champ) {
+    html += `<div style="text-align:center;padding:8px 0">
+      <div class="champ-label">🏆 Champion</div>
+      <div class="champ-name">${champ.name || champ}</div>
+    </div>`;
+  }
+
+  // Right semi
+  html += `<div class="matchup-box" style="width:100%">`;
+  ffRight.forEach((t, i) => html += renderCenterSlot(t, 'ff', i+2));
+  html += `</div>`;
+
+  html += '</div>'; // center
+
+  // RIGHT SIDE (rounds go right → left, reversed)
+  html += '<div class="bracket-side right">';
+  for (let ri = 0; ri < numRegionRounds; ri++) {
+    html += `<div class="bracket-round">`;
+    html += `<div class="bracket-round-label">${roundLabels[ri]}</div>`;
+    for (const region of rightRegions) {
+      const rnd = (rounds[region] || [])[ri] || [];
+      html += `<div class="region-tag">${region}</div>`;
+      html += renderRoundSlots(rnd, region, ri);
+    }
+    html += '</div>';
+  }
+  html += '</div>'; // right
+
+  html += '</div>'; // bracket-layout
+  return html;
+}
+
+function renderRoundSlots(teams, region, roundIdx) {
+  if (!teams.length) return '<div class="slot-group"><div class="matchup-box"><div class="team-slot empty-slot"><span class="team-label">TBD</span></div></div></div>';
+  let html = '<div class="slot-group">';
+  for (let i = 0; i < teams.length; i += 2) {
+    const t1 = teams[i], t2 = teams[i+1];
+    html += '<div class="matchup-box">';
+    html += renderTeamSlot(t1, region, roundIdx, i);
+    if (t2) html += renderTeamSlot(t2, region, roundIdx, i+1);
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderTeamSlot(team, region, roundIdx, pos) {
+  if (!team) return '';
+  const name = team.name || team;
+  const seed = team.seed || '';
+  const key = `${region}_r${roundIdx}_${pos}`;
+  const isWinner = isAlgoWinner(name, region, roundIdx);
+  const isPick = myPicks[key] === name;
+  let cls = 'team-slot';
+  if (isPick) cls += ' my-pick';
+  else if (isWinner) cls += ' winner';
+  return `<div class="${cls}" onclick="togglePick('${key}','${name.replace(/'/g,"\\'")}')">
+    ${seed ? `<span class="seed-badge">${seed}</span>` : ''}
+    <span class="team-label" title="${name}">${name}</span>
+  </div>`;
+}
+
+function renderCenterSlot(team, type, pos) {
+  if (!team) return '';
+  const name = team.name || team;
+  const seed = team.seed || '';
+  const key = `${type}_${pos}`;
+  const isPick = myPicks[key] === name;
+  let cls = 'team-slot' + (isPick ? ' my-pick' : ' winner');
+  return `<div class="${cls}" onclick="togglePick('${key}','${name.replace(/'/g,"\\'")}')">
+    ${seed ? `<span class="seed-badge">${seed}</span>` : ''}
+    <span class="team-label" title="${name}">${name}</span>
+  </div>`;
+}
+
+function isAlgoWinner(name, region, roundIdx) {
+  if (!bracketData) return false;
+  const nextRound = (bracketData.rounds[currentAlgo][region] || [])[roundIdx + 1] || [];
+  return nextRound.some(t => (t.name || t) === name);
+}
+
+function togglePick(key, team) {
+  if (myPicks[key] === team) {
+    delete myPicks[key];
+  } else {
+    myPicks[key] = team;
+  }
+  localStorage.setItem('bracketPicks', JSON.stringify(myPicks));
+  renderBracketTab();
+  if (document.getElementById('tab-mypicks').classList.contains('active')) renderMyPicksTab();
+}
+
+function clearMyPicks() {
+  myPicks = {};
+  localStorage.removeItem('bracketPicks');
+  renderBracketTab();
+  renderMyPicksTab();
+  setStatus('Picks cleared.', 'success');
+}
+
+/* ─── SUMMARY ─── */
+function renderSummaryTab() {
+  const d = bracketData;
+  if (!d) return;
+  const champs = d.champion || {};
+  const ff = d.final_four || {};
+  const mcPcts = d.monte_carlo_win_pcts || {};
+
+  // Top MC team
+  let topMC = '', topPct = 0;
+  Object.entries(mcPcts).forEach(([team, pcts]) => {
+    const finalPct = Array.isArray(pcts) ? pcts[pcts.length-1] : pcts;
+    if (finalPct > topPct) { topPct = finalPct; topMC = team; }
+  });
+
+  // Consensus champion (most algo votes)
+  const champCounts = {};
+  Object.values(champs).forEach(t => {
+    const n = t.name || t;
+    champCounts[n] = (champCounts[n]||0)+1;
+  });
+  const consensusChamp = Object.entries(champCounts).sort((a,b)=>b[1]-a[1])[0];
+
+  // Final four consensus
+  const f4counts = {};
+  Object.values(ff).forEach(teams => {
+    (Array.isArray(teams) ? teams : []).forEach(t => {
+      const n = t.name || t;
+      f4counts[n] = (f4counts[n]||0)+1;
+    });
+  });
+  const topF4 = Object.entries(f4counts).sort((a,b)=>b[1]-a[1]).slice(0,4);
+
+  let html = `
+    <div class="summary-grid">
+      <div class="summary-card gold">
+        <h3>Consensus Champion</h3>
+        <div class="big">${consensusChamp ? consensusChamp[0] : '—'}</div>
+        <div class="sub">${consensusChamp ? consensusChamp[1]+'/3 algorithms agree' : ''}</div>
+      </div>
+      <div class="summary-card">
+        <h3>Monte Carlo Favorite</h3>
+        <div class="big">${topMC || '—'}</div>
+        <div class="sub">${topPct ? topPct.toFixed(1)+'% simulated wins' : ''}</div>
+      </div>
+      ${algoList.map(a => {
+        const ch = champs[a];
+        return `<div class="summary-card">
+          <h3>${algoLabels[a]} Champion</h3>
+          <div class="big" style="font-size:1rem">${ch ? (ch.name||ch) : '—'}</div>
+          <div class="sub">${ch && ch.seed ? 'Seed #'+ch.seed : ''}</div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="picks-section">
+      <h3>Final Four — Algorithm Agreement</h3>
+      <div class="picks-grid">
+        ${topF4.map(([team, cnt]) => `<div class="pick-item">
+          <span class="pick-round">${cnt}/3</span>
+          <span class="pick-team">${team}</span>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="algo-compare">
+      <h3>Algorithm Comparison — Champions & Final Four</h3>
+      <table class="compare-table">
+        <thead><tr><th>Algorithm</th><th>Champion</th><th>Final Four</th></tr></thead>
+        <tbody>
+          ${algoList.map(a => {
+            const ch = (champs[a]||{}).name || champs[a] || '—';
+            const f4 = (ff[a]||[]).map(t=>t.name||t).join(', ') || '—';
+            return `<tr><td>${algoLabels[a]}</td><td class="agree">${ch}</td><td style="font-size:0.75rem;color:#94a3b8">${f4}</td></tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  document.getElementById('tab-summary').innerHTML = html;
+}
+
+/* ─── MY PICKS ─── */
+function renderMyPicksTab() {
+  const picks = Object.entries(myPicks);
+  const roundMap = { r0: 'Round of 64', r1: 'Round of 32', r2: 'Sweet 16', r3: 'Elite 8', ff: 'Final Four', championship: 'Championship' };
+
+  let html = `<div style="margin-bottom:1rem;display:flex;gap:0.5rem;align-items:center">
+    <span style="font-size:0.9rem;font-weight:700">${picks.length} picks made</span>
+    <button class="btn-sec btn-sm" onclick="clearMyPicks()">Clear All</button>
+  </div>`;
+
+  if (!picks.length) {
+    html += '<p class="empty">No picks yet.<br>Go to the Full Bracket tab and click teams to make your picks.</p>';
+  } else {
+    const byRound = {};
+    picks.forEach(([key, team]) => {
+      const roundKey = key.split('_')[1] || key.split('_')[0];
+      const label = roundMap[roundKey] || roundKey;
+      if (!byRound[label]) byRound[label] = [];
+      byRound[label].push({ key, team });
+    });
+
+    const order = ['Round of 64','Round of 32','Sweet 16','Elite 8','Final Four','Championship'];
+    order.forEach(label => {
+      if (!byRound[label]) return;
+      html += `<div class="picks-section" style="margin-bottom:1rem">
+        <h3>${label}</h3>
+        <div class="picks-grid">
+          ${byRound[label].map(({key, team}) => {
+            const region = key.split('_')[0];
+            return `<div class="pick-item">
+              <span class="pick-round" style="color:#475569">${region}</span>
+              <span class="pick-team">${team}</span>
+              <button class="btn-sec btn-sm" style="margin-left:auto;padding:0.15rem 0.4rem" onclick="removePick('${key}')">✕</button>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    });
+
+    // Show champion pick prominently
+    const champPick = myPicks['championship_0'] || myPicks['championship_1'];
+    if (champPick) {
+      html = `<div class="summary-card gold" style="margin-bottom:1.5rem;padding:1.25rem">
+        <h3>My Champion Pick</h3>
+        <div class="big">${champPick}</div>
+      </div>` + html;
+    }
+  }
+
+  document.getElementById('tab-mypicks').innerHTML = html;
+}
+
+function removePick(key) {
+  delete myPicks[key];
+  localStorage.setItem('bracketPicks', JSON.stringify(myPicks));
+  renderMyPicksTab();
+  if (document.getElementById('tab-bracket').classList.contains('active')) renderBracketTab();
+}
+
+/* ─── MONTE CARLO ODDS ─── */
+function renderOddsTab() {
+  const d = bracketData;
+  if (!d) return;
+  const mcPcts = d.monte_carlo_win_pcts || {};
+  const roundNames = ['R64', 'R32', 'Sweet 16', 'Elite 8', 'Final Four', 'Champ'];
+
+  // Get final round (championship) pct for each team
+  const champPcts = Object.entries(mcPcts).map(([team, pcts]) => {
+    const arr = Array.isArray(pcts) ? pcts : [pcts];
+    return { team, pct: arr[arr.length-1] || 0, all: arr };
+  }).sort((a,b) => b.pct - a.pct);
+
+  const maxPct = champPcts[0]?.pct || 1;
+
+  let html = `<div style="margin-bottom:1rem;font-size:0.82rem;color:#64748b">Championship win probability from 10,000 Monte Carlo simulations</div>
+    <table class="mc-table">
+      <thead><tr><th>#</th><th>Team</th><th>Champ %</th><th style="width:30%">Probability</th>`;
+  if (champPcts[0]?.all?.length > 1) html += roundNames.slice(0, champPcts[0].all.length).map(r => `<th>${r}</th>`).join('');
+  html += `</tr></thead><tbody>`;
+
+  champPcts.slice(0, 32).forEach(({team, pct, all}, i) => {
+    html += `<tr>
+      <td style="color:#475569">${i+1}</td>
+      <td style="font-weight:${i<4?'700':'400'}">${team}</td>
+      <td style="color:${i===0?'#f59e0b':i<4?'#60a5fa':'#94a3b8'}">${pct.toFixed(2)}%</td>
+      <td><div class="bar"><div class="bar-fill" style="width:${Math.min(100,pct/maxPct*100)}%"></div></div></td>`;
+    if (all.length > 1) all.forEach(p => { html += `<td style="font-size:0.72rem;color:#64748b">${typeof p==='number'?p.toFixed(1):'—'}%</td>`; });
+    html += `</tr>`;
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('tab-odds').innerHTML = html;
+}
+
+// Init
+loadBracket();
+</script>
+</body>
+</html>
