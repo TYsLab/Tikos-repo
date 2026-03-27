@@ -130,6 +130,45 @@ def save_to_db(all_data, asset_date):
     conn.close()
     logging.info(f"Saved {inserted} rows for {asset_date}")
 
+# ─── MANUAL REFETCH TRIGGER ───────────────────────────────────────────────────
+# POST /api/market-refetch?week=Week+10  — re-fetches live data and overwrites DB
+
+@app.route(route="market-refetch", auth_level=func.AuthLevel.ANONYMOUS, methods=["GET", "POST"])
+def market_refetch(req: func.HttpRequest) -> func.HttpResponse:
+    import json
+    week = req.params.get("week")
+    if not week:
+        base_date = datetime(2026, 1, 22)
+        week_num  = ((datetime.today() - base_date).days // 7) + 1
+        week = f"Week {week_num}"
+
+    logging.info(f"Manual refetch triggered for {week}")
+    try:
+        yahoo = fetch_yahoo()
+        fred  = fetch_fred()
+        pe    = fetch_pe_ratio()
+
+        all_data = {
+            "Equities":    {k: v for k, v in yahoo.items() if k in ["S&P 500", "NASDAQ Composite"]},
+            "Non-US":      {k: v for k, v in yahoo.items() if k in ["FTSE 100", "DAX"]},
+            "Volatility":  {k: v for k, v in yahoo.items() if k in ["VIX"]},
+            "Commodities": {**{k: v for k, v in yahoo.items() if k in ["Gold ($/oz)"]},
+                            **{k: v for k, v in fred.items() if k in ["Oil WTI ($/bbl)"]}},
+            "Rates":       {k: v for k, v in fred.items() if k not in ["Oil WTI ($/bbl)"]},
+            "Valuation":   {"S&P 500 P/E": pe} if pe else {},
+        }
+
+        save_to_db(all_data, week)
+        return func.HttpResponse(
+            body=json.dumps({"status": "ok", "week": week, "data": {k: dict(v) for k, v in all_data.items()}}),
+            mimetype="application/json",
+            headers={"Access-Control-Allow-Origin": "*"}
+        )
+    except Exception as e:
+        logging.error(f"market_refetch error: {e}")
+        return func.HttpResponse(json.dumps({"status": "error", "message": str(e)}), status_code=500,
+                                 mimetype="application/json")
+
 # ─── HTTP TRIGGER ─────────────────────────────────────────────────────────────
 
 @app.route(route="market-data", auth_level=func.AuthLevel.ANONYMOUS)
