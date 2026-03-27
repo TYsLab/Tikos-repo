@@ -21,7 +21,6 @@ YAHOO_TICKERS = {
     "DAX":               "^GDAXI",
     "VIX":               "^VIX",
     "Gold ($/oz)":       "GC=F",
-    "Oil WTI ($/bbl)":   "CL=F",
 }
 
 FRED_SERIES = {
@@ -32,6 +31,7 @@ FRED_SERIES = {
     "30Y Treasury (%)":    "DGS30",
     "2Y/10Y Spread":       "T10Y2Y",
     "Gas Regular ($/gal)": "GASREGW",  # EIA weekly retail regular unleaded pump price
+    "Oil WTI ($/bbl)":     "DCOILWTICO",  # EIA WTI crude oil spot price (more accurate than futures)
 }
 
 # ─── DB ───────────────────────────────────────────────────────────────────────
@@ -331,8 +331,9 @@ def fetch_weekly_market_data(myTimer: func.TimerRequest) -> None:
         "Equities":    {k: v for k, v in yahoo.items() if k in ["S&P 500", "NASDAQ Composite"]},
         "Non-US":      {k: v for k, v in yahoo.items() if k in ["FTSE 100", "DAX"]},
         "Volatility":  {k: v for k, v in yahoo.items() if k in ["VIX"]},
-        "Commodities": {k: v for k, v in yahoo.items() if k in ["Gold ($/oz)", "Oil WTI ($/bbl)"]},
-        "Rates":       fred,
+        "Commodities": {**{k: v for k, v in yahoo.items() if k in ["Gold ($/oz)"]},
+                        **{k: v for k, v in fred.items() if k in ["Oil WTI ($/bbl)"]}},
+        "Rates":       {k: v for k, v in fred.items() if k not in ["Oil WTI ($/bbl)"]},
         "Valuation":   {"S&P 500 P/E": pe} if pe else {},
     }
 
