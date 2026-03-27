@@ -169,6 +169,78 @@ def market_refetch(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(json.dumps({"status": "error", "message": str(e)}), status_code=500,
                                  mimetype="application/json")
 
+# ─── OIL PRICE BACKFILL ───────────────────────────────────────────────────────
+# GET /api/market-fix-oil — corrects all weeks' WTI oil price using FRED historical data
+
+@app.route(route="market-fix-oil", auth_level=func.AuthLevel.ANONYMOUS)
+def market_fix_oil(req: func.HttpRequest) -> func.HttpResponse:
+    import json
+    base_date = datetime(2026, 1, 22)
+    results = []
+
+    try:
+        conn   = get_conn()
+        cursor = conn.cursor()
+
+        # Get all distinct weeks in DB
+        cursor.execute("SELECT DISTINCT AssetDate FROM MarketData WHERE AssetDate LIKE 'Week %'")
+        weeks = [r[0] for r in cursor.fetchall()]
+
+        for week_label in weeks:
+            try:
+                week_num = int(week_label.replace("Week ", "").strip())
+            except ValueError:
+                continue
+
+            # Calculate the Thursday of that week (when data was collected)
+            week_start = base_date + timedelta(weeks=week_num - 1)
+            week_end   = week_start + timedelta(days=10)
+
+            # Fetch WTI spot price from FRED for that week
+            url = (
+                f"https://api.stlouisfed.org/fred/series/observations"
+                f"?series_id=DCOILWTICO&api_key={FRED_API_KEY}&file_type=json"
+                f"&observation_start={week_start.strftime('%Y-%m-%d')}"
+                f"&observation_end={week_end.strftime('%Y-%m-%d')}"
+                f"&sort_order=desc&limit=5"
+            )
+            obs = requests.get(url, timeout=10).json().get("observations", [])
+            price = None
+            for o in obs:
+                if o["value"] != ".":
+                    price = round(float(o["value"]), 4)
+                    break
+
+            if price is None:
+                results.append({"week": week_label, "status": "no data"})
+                continue
+
+            # Update or insert correct oil price
+            cursor.execute("""
+                IF EXISTS (SELECT 1 FROM MarketData WHERE AssetDate=? AND Asset=?)
+                    UPDATE MarketData SET ClosePrice=? WHERE AssetDate=? AND Asset=?
+                ELSE
+                    INSERT INTO MarketData (AssetDate, Category, Asset, ClosePrice)
+                    VALUES (?, 'Commodities', ?, ?)
+            """, week_label, "Oil WTI ($/bbl)", price, week_label, "Oil WTI ($/bbl)",
+                 week_label, "Oil WTI ($/bbl)", price)
+
+            results.append({"week": week_label, "oil_price": price, "status": "updated"})
+            logging.info(f"Fixed oil for {week_label}: ${price}")
+
+        conn.commit()
+        conn.close()
+
+        return func.HttpResponse(
+            body=json.dumps({"status": "ok", "fixed": results}),
+            mimetype="application/json",
+            headers={"Access-Control-Allow-Origin": "*"}
+        )
+    except Exception as e:
+        logging.error(f"market_fix_oil error: {e}")
+        return func.HttpResponse(json.dumps({"status": "error", "message": str(e)}),
+                                 status_code=500, mimetype="application/json")
+
 # ─── HTTP TRIGGER ─────────────────────────────────────────────────────────────
 
 @app.route(route="market-data", auth_level=func.AuthLevel.ANONYMOUS)
